@@ -10,13 +10,53 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
         "command": "game-over.helloWorld",
-        "title": "Hello World"
+        "title": "game-over.helloWorld"
+      },
+      {
+        "command": "game-over.i",
+        "title": "game-over.i"
+      },
+      {
+        "command": "game-over.j",
+        "title": "game-over.j"
+      },
+      {
+        "command": "game-over.k",
+        "title": "game-over.k"
+      },
+      {
+        "command": "game-over.l",
+        "title": "game-over.l"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "game-over.i",
+        "key": "i",
+        "when": "game-over.moveMode"
+      },
+      {
+        "command": "game-over.j",
+        "key": "j",
+        "when": "game-over.moveMode"
+      },
+      {
+        "command": "game-over.k",
+        "key": "k",
+        "when": "game-over.moveMode"
+      },
+      {
+        "command": "game-over.l",
+        "key": "l",
+        "when": "game-over.moveMode"
       }
     ]
   },
