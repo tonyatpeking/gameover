@@ -1,3 +1,8 @@
+import sys
+
+sys.path.append('..')
+
+
 def my_function():
     # Do some work here
     my_function.custom_attribute = 'Hello, World!'
@@ -10,16 +15,23 @@ my_function()
 print(my_function.custom_attribute)  # Output: Hello, World!
 
 
-def aa():
-    aa.abc = 'ab'
+def aas(s: str, i: int) -> str:
+    sss: str = 'asdf' + s
+    dss: dict = {
+        sss: 1,
+        'b': 2
+    }
+    aas.abc = 'ab'
     print('aa')
     asdfa = '''
 sdf, asdf sd = [sdfs] asdf
 sdf
 sdfasdf
 '''
+    return 'aasd' + s + str(i) + sss
 
 
-aa()
+aas('asdf', 1)
 
-print(aa.abc)
+print(aas.abc)
+aas

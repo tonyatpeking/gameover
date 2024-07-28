@@ -1,6 +1,6 @@
 {
-  "name": "game-over",
-  "displayName": "game-over Keyboard Shortcuts",
+  "name": "gameover",
+  "displayName": "gameover Keyboard Shortcuts",
   "description": "Gamer Overhaul. Reuse muscle memory learned from games.",
   "version": "0.0.1",
   "publisher": "tonyatpeking",
@@ -17,46 +17,46 @@
   "contributes": {
     "commands": [
       {
-        "command": "game-over.helloWorld",
-        "title": "game-over.helloWorld"
+        "command": "gameover.helloWorld",
+        "title": "gameover.helloWorld"
       },
       {
-        "command": "game-over.i",
-        "title": "game-over.i"
+        "command": "gameover.i",
+        "title": "gameover.i"
       },
       {
-        "command": "game-over.j",
-        "title": "game-over.j"
+        "command": "gameover.j",
+        "title": "gameover.j"
       },
       {
-        "command": "game-over.k",
-        "title": "game-over.k"
+        "command": "gameover.k",
+        "title": "gameover.k"
       },
       {
-        "command": "game-over.l",
-        "title": "game-over.l"
+        "command": "gameover.l",
+        "title": "gameover.l"
       }
     ],
     "keybindings": [
       {
-        "command": "game-over.i",
+        "command": "gameover.i",
         "key": "i",
-        "when": "game-over.moveMode"
+        "when": "gameover.moveMode"
       },
       {
-        "command": "game-over.j",
+        "command": "gameover.j",
         "key": "j",
-        "when": "game-over.moveMode"
+        "when": "gameover.moveMode"
       },
       {
-        "command": "game-over.k",
+        "command": "gameover.k",
         "key": "k",
-        "when": "game-over.moveMode"
+        "when": "gameover.moveMode"
       },
       {
-        "command": "game-over.l",
+        "command": "gameover.l",
         "key": "l",
-        "when": "game-over.moveMode"
+        "when": "gameover.moveMode"
       }
     ]
   },

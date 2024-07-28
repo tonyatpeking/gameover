@@ -12,7 +12,7 @@
 			"args": [
 				"${workspaceFolder}/src/test/test-dir/",
 				"${workspaceFolder}/src/test/test-dir/scratchpad.py",
-				//"--disable-extensions",
+				"--disable-extensions",
 				"--extensionDevelopmentPath=${workspaceFolder}"
 			],
 			"outFiles": [
