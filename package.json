@@ -21,40 +21,40 @@
         "title": "gameover.helloWorld"
       },
       {
-        "command": "gameover.i",
-        "title": "gameover.i"
+        "command": "gameover.moveLeft",
+        "title": "gameover.moveLeft"
       },
       {
-        "command": "gameover.j",
-        "title": "gameover.j"
+        "command": "gameover.moveRight",
+        "title": "gameover.moveRight"
       },
       {
-        "command": "gameover.k",
-        "title": "gameover.k"
+        "command": "gameover.moveUp",
+        "title": "gameover.moveUp"
       },
       {
-        "command": "gameover.l",
-        "title": "gameover.l"
+        "command": "gameover.moveDown",
+        "title": "gameover.moveDown"
       }
     ],
     "keybindings": [
       {
-        "command": "gameover.i",
+        "command": "gameover.moveUp",
         "key": "i",
         "when": "gameover.moveMode"
       },
       {
-        "command": "gameover.j",
+        "command": "gameover.moveLeft",
         "key": "j",
         "when": "gameover.moveMode"
       },
       {
-        "command": "gameover.k",
+        "command": "gameover.moveDown",
         "key": "k",
         "when": "gameover.moveMode"
       },
       {
-        "command": "gameover.l",
+        "command": "gameover.moveRight",
         "key": "l",
         "when": "gameover.moveMode"
       }
