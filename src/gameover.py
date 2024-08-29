@@ -8,9 +8,10 @@ from pathlib import Path
 import time
 import sys
 import window_manager_ricer
+import inspect
+from types import SimpleNamespace
 
-
-GAMER_COMMANDS_PIPE = Path('/tmp/gamer_commands_pipe')
+GAMER_MESSAGE_PIPE = Path('/tmp/gamer_message_pipe')
 WINDOW_MANAGER_PIPE = Path('/tmp/window_manager_pipe')
 
 # Ensure the pipe exists
@@ -28,16 +29,16 @@ PIPE_WATCHER_SLEEP_TIME = 0.01
 
 def reload_script():
     # sleep before reload so if we have a infinite loop we can manually stop it
-    time.sleep(1)
-    print("Reloading script")
+    time.sleep(0.3)
+    print("--- gameover.py reloading ---")
     # get the current script path
     script_path = Path(__file__).resolve()
     # kill the current script and start it again
     os.execv(sys.executable, [sys.executable, str(script_path)])
 
 
-while not GAMER_COMMANDS_PIPE.exists():
-    print(f"Waiting for pipe to start {GAMER_COMMANDS_PIPE}")
+while not GAMER_MESSAGE_PIPE.exists():
+    print(f"Waiting for pipe to start {GAMER_MESSAGE_PIPE}")
     time.sleep(0.5)
 
 
@@ -51,44 +52,42 @@ def make_pipe_watcher(pipe_path, process_message_fn, sleep_time):
             async with aiofiles.open(pipe_path, 'r') as fifo:
                 # Read a line from the pipe asynchronously
                 lines = await fifo.read()
+                print('lines:', lines)
                 for line in lines.splitlines():
                     process_message_fn(line.strip())
             await asyncio.sleep(sleep_time)
     return read_pipe
 
 
-async def read_gamer_commands_pipe():
-    while True:
-        if not GAMER_COMMANDS_PIPE.exists():
-            print(f"Waiting for pipe to start {GAMER_COMMANDS_PIPE}")
-            await asyncio.sleep(0.5)
-            continue
-        async with aiofiles.open(GAMER_COMMANDS_PIPE, 'r') as fifo:
-            # Read a line from the pipe asynchronously
-            lines = await fifo.read()
-            for line in lines.splitlines():
-                print(f"{line.strip()}")
-        await asyncio.sleep(.1)
+def get_commands(module=None):
+    if not module:
+        module = sys.modules[__name__]
+    name_function_pairs = inspect.getmembers(module, inspect.isfunction)
+    commands = {}
+    for name, function in name_function_pairs:
+        if name.isupper():
+            # Do something with the function
+            commands[name] = function
+    return commands
 
 
-async def read_window_manager_pipe():
-    while True:
-        if not WINDOW_MANAGER_PIPE.exists():
-            print(f"Waiting for pipe to start {WINDOW_MANAGER_PIPE}")
-            await asyncio.sleep(0.5)
-            continue
-        async with aiofiles.open(WINDOW_MANAGER_PIPE, 'r') as fifo:
-            # Read a line from the pipe asynchronously
-            lines = await fifo.read()
-            for line in lines.splitlines():
-                print(f"{line.strip()}")
-        await asyncio.sleep(.1)
+def parse_gamer_message(message_str):
+    message = SimpleNamespace()
+    message.kwargs = {}
+    parts = message_str.split()
+    message.type = parts[0]
+    message.value = parts[1]
+    for arg in parts[2:]:
+        key, value = arg.split('=')
+        message.kwargs[key] = value
+    return message
 
 
-def process_gamer_commands_pipe(message):
-    print(message)
-    if message.startswith('ENTER'):
-        mode = message.split(' ')[1]
+def process_gamer_message_pipe(message_str):
+    print(f'>>> raw message: {message_str}')
+    message = parse_gamer_message(message_str)
+    if message.type == 'ENTER':
+        mode = message.value
         if mode == '_WINDOW_MANAGER_MODE':
             window_manager_ricer.request_flash_reset('#fa07c9', '#5c194e')
         if mode == '_TEXT_MODE':
@@ -97,12 +96,26 @@ def process_gamer_commands_pipe(message):
             window_manager_ricer.request_flash_reset('#ffffff', '#9e9e9e')
         if mode == '_GAMER_MODE':
             window_manager_ricer.request_flash_reset('#88ee00', '#335533')
+    if message.type == 'EXIT':
+        pass
+    if message.type == 'COMMAND':
+        print(message_str)
+        command = message.value
+
+        gameover_commands = get_commands()
+        if command in gameover_commands:
+            gameover_commands[command](**message.kwargs)
+
+        # relay commands to window manager ricer
+        window_manager_commands = get_commands(window_manager_ricer)
+        if command in window_manager_commands:
+            window_manager_commands[command](**message.kwargs)
 
 
 async def main():
     gamer_commands_pipe_watcher = make_pipe_watcher(
-        GAMER_COMMANDS_PIPE,
-        process_gamer_commands_pipe,
+        GAMER_MESSAGE_PIPE,
+        process_gamer_message_pipe,
         PIPE_WATCHER_SLEEP_TIME)
 
     window_manager_pipe_watcher = make_pipe_watcher(
@@ -120,6 +133,15 @@ async def main():
         window_manager_ricer.color_changer())
 
     await asyncio.gather(read_window_manager_task)
+
+
+# region Commands
+
+def RELOAD_GAMEOVER():
+    reload_script()
+
+# endregion
+
 
 if __name__ == "__main__":
     asyncio.run(main())
