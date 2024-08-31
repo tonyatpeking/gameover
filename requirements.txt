@@ -1,3 +1,4 @@
 
 pyperclip
 aiofiles
+colorful

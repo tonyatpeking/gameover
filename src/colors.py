@@ -1,0 +1,15 @@
+import colorful
+import colorsys
+
+
+COLOR_WINDOW_MODE_FLASH = '#fa07c9'
+COLOR_WINDOW_MODE_STILL = '#8f0a74'
+
+COLOR_TM_FLASH = '#3cb1fa'
+COLOR_TM_STILL = '#1e6896'
+
+COLOR_BM_FLASH = '#ffffff'
+COLOR_BM_STILL = '#9e9e9e'
+
+COLOR_GM_FLASH = '#99ee00'
+COLOR_GM_STILL = '#639903'

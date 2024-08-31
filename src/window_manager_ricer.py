@@ -6,6 +6,7 @@ import time
 import aiofiles
 import subprocess
 from types import SimpleNamespace
+from colors import *
 
 FPS = 60
 SLEEP_TIME = 1 / FPS
@@ -15,8 +16,8 @@ TOTAL_EFFECT_DURATION = 0.12
 DEBOUNCE_TIME = 0.05
 REQUEST_DEBOUNCE_TIME = 0.12
 
-DEFAULT_START_COLOR = '#88ee00'
-DEFAULT_END_COLOR = '#335533'
+DEFAULT_START_COLOR = COLOR_GM_FLASH
+DEFAULT_END_COLOR = COLOR_GM_STILL
 
 
 class WindowState:
@@ -148,8 +149,6 @@ async def color_changer():
         #     # time.sleep(sleep_time_remaining)
 
 
-
-
 def parse_window_manager_message(message_str):
     assert message_str.startswith('WINDOW_MANAGER')
     message = SimpleNamespace()
@@ -228,35 +227,47 @@ def request_flash_reset(start_color=None, end_color=None):
 
 # region Commands
 
+
 def WM_FOCUS_ID(window_id):
     if window_id != None:
         subprocess.run(['herbstclient', 'jumpto', window_id])
 
+
 def WM_FOCUS_UP():
     subprocess.run(['herbstclient', 'focus', 'up'])
+
 
 def WM_FOCUS_DOWN():
     subprocess.run(['herbstclient', 'focus', 'down'])
 
 # [todo] add wrap around
+
+
 def WM_FOCUS_LEFT():
     subprocess.run(['herbstclient', 'focus', 'left'])
 
 # [todo] add wrap around
+
+
 def WM_FOCUS_RIGHT():
     subprocess.run(['herbstclient', 'focus', 'right'])
+
 
 def WM_SHIFT_UP():
     subprocess.run(['herbstclient', 'shift', 'up'])
 
+
 def WM_SHIFT_DOWN():
     subprocess.run(['herbstclient', 'shift', 'down'])
+
 
 def WM_SHIFT_LEFT():
     subprocess.run(['herbstclient', 'shift', 'left'])
 
+
 def WM_SHIFT_RIGHT():
     subprocess.run(['herbstclient', 'shift', 'right'])
+
 
 def WM_RELOAD():
     subprocess.run(['herbstclient', 'reload'])
@@ -273,39 +284,54 @@ def WM_CLOSE_WINDOW():
 def WM_LAUNCH():
     subprocess.run(['herbstclient', 'spawn', 'rofi', '-show', 'run'])
 
+
 def WM_LAUNCH_TERMINAL():
     subprocess.run(['herbstclient', 'spawn', 'kitty'])
 
+
 def WM_SPLIT():
-    subprocess.run(['herbstclient', 'split', 'right', '0.5' ])
+    subprocess.run(['herbstclient', 'split', 'right', '0.5'])
+
 
 def WM_REMOVE():
     subprocess.run(['herbstclient', 'remove'])
 
+
 def WM_FULLSCREEN_TOGGLE():
     subprocess.run(['herbstclient', 'fullscreen', 'toggle'])
 
+
 def WM_FLOAT_TOGGLE():
-    subprocess.run(['herbstclient', 'set_attr', 'clients.focus.floating', 'toggle'])
+    subprocess.run(['herbstclient', 'set_attr',
+                   'clients.focus.floating', 'toggle'])
+
 
 resize_step = '+'+str(0.02)
+
+
 def WM_RESIZE_UP():
     subprocess.run(['herbstclient', 'resize', 'up', resize_step])
+
 
 def WM_RESIZE_DOWN():
     subprocess.run(['herbstclient', 'resize', 'down', resize_step])
 
+
 def WM_RESIZE_LEFT():
     subprocess.run(['herbstclient', 'resize', 'left', resize_step])
+
 
 def WM_RESIZE_RIGHT():
     subprocess.run(['herbstclient', 'resize', 'right', resize_step])
 
+
 def WM_GOTO_WORKSPACE(workspace_id):
     subprocess.run(['herbstclient', 'use', workspace_id])
 
+
 def WM_MOVE_TO_WORKSPACE(workspace_id):
     subprocess.run(['herbstclient', 'move', workspace_id])
+
 
 def WM_FOCUS_PREVIOUS():
     WM_FOCUS_ID(window_state.prev_window_id)

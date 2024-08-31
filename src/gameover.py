@@ -10,6 +10,13 @@ import sys
 import window_manager_ricer
 import inspect
 from types import SimpleNamespace
+from colors import *
+
+DEBUG_PRINT_GAMER_MESSAGE_RAW = True
+DEBUG_PRINT_WINDOW_MANAGER_RAW = False
+DEBUG_PRINT_ENTER = True
+DEBUG_PRINT_EXIT = False
+DEBUG_PRINT_COMMAND = True
 
 GAMER_MESSAGE_PIPE = Path('/tmp/gamer_message_pipe')
 WINDOW_MANAGER_PIPE = Path('/tmp/window_manager_pipe')
@@ -24,7 +31,7 @@ if not os.path.exists(WINDOW_MANAGER_PIPE):
 # between reads.
 # It is NOT the latency of the pipe watcher as it will almost immediately
 # process the pipe the first time it is read, using `async with aiofiles.open`
-PIPE_WATCHER_SLEEP_TIME = 0.01
+PIPE_WATCHER_SLEEP_TIME = 0.1
 
 
 def reload_script():
@@ -52,7 +59,6 @@ def make_pipe_watcher(pipe_path, process_message_fn, sleep_time):
             async with aiofiles.open(pipe_path, 'r') as fifo:
                 # Read a line from the pipe asynchronously
                 lines = await fifo.read()
-                print('lines:', lines)
                 for line in lines.splitlines():
                     process_message_fn(line.strip())
             await asyncio.sleep(sleep_time)
@@ -84,22 +90,33 @@ def parse_gamer_message(message_str):
 
 
 def process_gamer_message_pipe(message_str):
-    print(f'>>> raw message: {message_str}')
+    if DEBUG_PRINT_GAMER_MESSAGE_RAW:
+        print(f'>>> raw message: {message_str}')
     message = parse_gamer_message(message_str)
     if message.type == 'ENTER':
+        if DEBUG_PRINT_ENTER:
+            print(message_str)
         mode = message.value
+
         if mode == '_WINDOW_MANAGER_MODE':
-            window_manager_ricer.request_flash_reset('#fa07c9', '#5c194e')
+            window_manager_ricer.request_flash_reset(
+                COLOR_WINDOW_MODE_FLASH, COLOR_WINDOW_MODE_STILL)
         if mode == '_TEXT_MODE':
-            window_manager_ricer.request_flash_reset('#94e9f7', '#30555c')
+            window_manager_ricer.request_flash_reset(
+                COLOR_TM_FLASH, COLOR_TM_STILL)
         if mode == '_BOSS_MODE':
-            window_manager_ricer.request_flash_reset('#ffffff', '#9e9e9e')
+            window_manager_ricer.request_flash_reset(
+                COLOR_BM_FLASH, COLOR_BM_STILL)
         if mode == '_GAMER_MODE':
-            window_manager_ricer.request_flash_reset('#88ee00', '#335533')
+            window_manager_ricer.request_flash_reset(
+                COLOR_GM_FLASH, COLOR_GM_STILL)
     if message.type == 'EXIT':
+        if DEBUG_PRINT_EXIT:
+            print(message_str)
         pass
     if message.type == 'COMMAND':
-        print(message_str)
+        if DEBUG_PRINT_COMMAND:
+            print(message_str)
         command = message.value
 
         gameover_commands = get_commands()
