@@ -1,4 +1,4 @@
 
 pyperclip
 aiofiles
-colorful
+rich

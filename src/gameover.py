@@ -11,15 +11,20 @@ import window_manager_ricer
 import inspect
 from types import SimpleNamespace
 from colors import *
+from keymap_mode import Mode, print_mode_state
 
-DEBUG_PRINT_GAMER_MESSAGE_RAW = True
+DEBUG_PRINT_RAW_LINES = False
+DEBUG_PRINT_GAMER_MESSAGE_RAW = False
 DEBUG_PRINT_WINDOW_MANAGER_RAW = False
 DEBUG_PRINT_ENTER = True
-DEBUG_PRINT_EXIT = False
+DEBUG_PRINT_EXIT = True
 DEBUG_PRINT_COMMAND = True
+DEBUG_PRINT_MODE_BEFORE = True
+DEBUG_PRINT_MODE_AFTER = True
 
 GAMER_MESSAGE_PIPE = Path('/tmp/gamer_message_pipe')
 WINDOW_MANAGER_PIPE = Path('/tmp/window_manager_pipe')
+
 
 # Ensure the pipe exists
 if not os.path.exists(WINDOW_MANAGER_PIPE):
@@ -55,13 +60,18 @@ def make_pipe_watcher(pipe_path, process_message_fn, sleep_time):
             if not pipe_path.exists():
                 print(f"Waiting for pipe to start {pipe_path}")
                 await asyncio.sleep(0.5)
-                continue
-            async with aiofiles.open(pipe_path, 'r') as fifo:
+            else:
+                break
+        async with aiofiles.open(pipe_path, 'r') as fifo:
+            while True:
                 # Read a line from the pipe asynchronously
                 lines = await fifo.read()
-                for line in lines.splitlines():
-                    process_message_fn(line.strip())
-            await asyncio.sleep(sleep_time)
+                if lines:
+                    if DEBUG_PRINT_RAW_LINES:
+                        print(f'#### lines ####:\n{lines}')
+                    for line in lines.splitlines():
+                        process_message_fn(line.strip())
+                await asyncio.sleep(sleep_time)
     return read_pipe
 
 
@@ -82,6 +92,10 @@ def parse_gamer_message(message_str):
     message.kwargs = {}
     parts = message_str.split()
     message.type = parts[0]
+    if len(parts) == 1:
+        message.value = None
+        message.kwargs = {}
+        return message
     message.value = parts[1]
     for arg in parts[2:]:
         key, value = arg.split('=')
@@ -89,31 +103,41 @@ def parse_gamer_message(message_str):
     return message
 
 
+def flash_top_mode():
+    top_mode = None
+    for mode in Mode.all_modes.values():
+        if mode.is_active:
+            top_mode = mode
+            break
+    if top_mode:
+        window_manager_ricer.request_flash_reset(
+            top_mode.flash_color, top_mode.still_color)
+
+
 def process_gamer_message_pipe(message_str):
+    if DEBUG_PRINT_MODE_BEFORE:
+        print_mode_state()
+
     if DEBUG_PRINT_GAMER_MESSAGE_RAW:
         print(f'>>> raw message: {message_str}')
     message = parse_gamer_message(message_str)
     if message.type == 'ENTER':
         if DEBUG_PRINT_ENTER:
             print(message_str)
-        mode = message.value
-
-        if mode == '_WINDOW_MANAGER_MODE':
+        mode_name = message.value
+        if mode_name in Mode.all_modes:
+            mode = Mode.all_modes[mode_name]
+            mode.is_active = True
             window_manager_ricer.request_flash_reset(
-                COLOR_WINDOW_MODE_FLASH, COLOR_WINDOW_MODE_STILL)
-        if mode == '_TEXT_MODE':
-            window_manager_ricer.request_flash_reset(
-                COLOR_TM_FLASH, COLOR_TM_STILL)
-        if mode == '_BOSS_MODE':
-            window_manager_ricer.request_flash_reset(
-                COLOR_BM_FLASH, COLOR_BM_STILL)
-        if mode == '_GAMER_MODE':
-            window_manager_ricer.request_flash_reset(
-                COLOR_GM_FLASH, COLOR_GM_STILL)
+                mode.flash_color, mode.still_color)
     if message.type == 'EXIT':
         if DEBUG_PRINT_EXIT:
             print(message_str)
-        pass
+        mode_name = message.value
+        if mode_name in Mode.all_modes:
+            mode = Mode.all_modes[mode_name]
+            mode.is_active = False
+        flash_top_mode()
     if message.type == 'COMMAND':
         if DEBUG_PRINT_COMMAND:
             print(message_str)
@@ -127,6 +151,10 @@ def process_gamer_message_pipe(message_str):
         window_manager_commands = get_commands(window_manager_ricer)
         if command in window_manager_commands:
             window_manager_commands[command](**message.kwargs)
+
+    if DEBUG_PRINT_MODE_AFTER:
+        print_mode_state()
+    print()
 
 
 async def main():
