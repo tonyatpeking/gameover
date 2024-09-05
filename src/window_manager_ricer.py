@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!../.venv/bin/python
 
 import os
 import asyncio
@@ -8,6 +8,8 @@ import subprocess
 from types import SimpleNamespace
 from keymap_mode import Mode
 from colors import lerp_color
+from shell_utils import sh, popen
+from pprint import pprint
 
 FPS = 60
 SLEEP_TIME = 1 / FPS
@@ -204,7 +206,90 @@ def request_flash_reset(start_color=None, end_color=None):
         # print('window_manager_ricer: request_flash_reset debounced')
         pass
 
+
+def get_clients():
+    ATTRIBUTES = [
+        'class',
+        'floating',
+        'floating_geometry',
+        'fullscreen',
+        'instance',
+        'pid',
+        'pgid',
+        'tag',
+        'title',
+        'urgent',
+        'winid'
+    ]
+
+    # client key can be either a winid '0x...' or 'focus'
+    clients_keys = []
+
+    clients = {}
+    result = sh('herbstclient attr clients', print_output=False)
+    if not result:
+        return clients
+    lines = result.split('\n')
+    for line in lines:
+        line = line.strip()
+        if line.endswith('.'):
+            line = line[:-1]
+        if line.startswith('0x') or line == 'focus':
+            clients_keys.append(line)
+    for client_id in clients_keys:
+        client_attrs = sh('herbstclient attr clients.' +
+                          client_id, print_output=False)
+        clients[client_id] = {}
+        if not client_attrs:
+            continue
+        lines = client_attrs.split('\n')
+        for line in lines:
+            if not '=' in line:
+                continue
+            line = line[6:]
+            key, value = line.split('=')
+            key = key.strip()
+            value = value.strip()
+            value = value.replace('"', '')
+            if key in ATTRIBUTES:
+                clients[client_id][key] = value
+    return clients
+
+
+def get_clients_by_attr(attr, value, exact_match=True):
+    clients = get_clients()
+    matching_clients = {}
+    for client_id, client in clients.items():
+        if attr not in client:
+            continue
+        if exact_match and client[attr] == value:
+            matching_clients[client_id] = client
+        if not exact_match and value in client[attr]:
+            matching_clients[client_id] = client
+    return matching_clients
+
+
+def get_screen_resolution():
+    result = sh('herbstclient monitor_rect', print_output=False)
+    if not result:
+        return None
+    items = result.split()
+    if len(items) < 4:
+        return None
+    width = int(items[2])
+    height = int(items[3])
+    return (width, height)
+
+
 # region Commands
+
+
+def WM_BRING(window_id):
+    '''
+    Bring the window to the current tag and focuses it
+    '''
+    if window_id != None:
+        subprocess.run(['herbstclient', 'bring', window_id])
 
 
 def WM_FOCUS_ID(window_id):
@@ -285,6 +370,14 @@ def WM_FLOAT_TOGGLE():
                    'clients.focus.floating', 'toggle'])
 
 
+def WM_FLOAT(to_float: str):
+    '''
+    to_float = 'true' or 'false'
+    '''
+    subprocess.run(['herbstclient', 'set_attr',
+                   'clients.focus.floating', 'true'])
+
+
 resize_step = '+'+str(0.02)
 
 
@@ -316,4 +409,40 @@ def WM_FOCUS_PREVIOUS():
     WM_FOCUS_ID(window_state.prev_window_id)
 
 
+def WM_TOGGLE_VOLUME_CONTROL():
+    volume_clients = get_clients_by_attr('title', 'pulsemixer')
+    if not volume_clients:
+        sh('kitty --detach sh -c pulsemixer &')
+        time.sleep(0.4)
+        volume_clients = get_clients_by_attr('title', 'pulsemixer')
+    if not volume_clients:
+        print('Failed to launch pulsemixer')
+        return
+    client = list(volume_clients.values())[0]
+    winid = client['winid']
+
+    if WM_TOGGLE_VOLUME_CONTROL.visible:
+        WM_TOGGLE_VOLUME_CONTROL.visible = False
+        sh(f'herbstclient set_attr clients.{winid}.minimized true')
+    else:
+        WM_TOGGLE_VOLUME_CONTROL.visible = True
+        WM_BRING(winid)
+        sh(f'herbstclient set_attr clients.{winid}.minimized false')
+        sh(f'herbstclient set_attr clients.{winid}.floating true')
+        resolution = get_screen_resolution()
+        window_x = 800
+        window_y = 600
+        offset_x = 200
+        offset_y = 200
+        if resolution:
+            screen_width, screen_height = resolution
+            # center the window
+            offset_x = (screen_width - window_x) // 2
+            offset_y = (screen_height - window_y) // 2
+
+        sh(f'herbstclient set_attr clients.{
+            winid}.floating_geometry {window_x}x{window_y}+{offset_x}+{offset_y}')
+
+
+WM_TOGGLE_VOLUME_CONTROL.visible = False
 # endregion Commands

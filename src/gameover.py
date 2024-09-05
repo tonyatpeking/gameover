@@ -1,4 +1,4 @@
-#!../venv/bin/python
+#!../.venv/bin/python
 
 import pyperclip
 import os
@@ -12,6 +12,10 @@ import inspect
 from types import SimpleNamespace
 from colors import *
 from keymap_mode import Mode, print_mode_state
+from types import SimpleNamespace
+import pprint
+from shell_utils import sh
+import subprocess
 
 DEBUG_PRINT_RAW_LINES = False
 DEBUG_PRINT_GAMER_MESSAGE_RAW = False
@@ -177,13 +181,94 @@ async def main():
     color_changer_task = asyncio.create_task(
         window_manager_ricer.color_changer())
 
-    await asyncio.gather(read_window_manager_task)
+    await asyncio.gather(read_window_manager_task, read_gamer_commands_task, color_changer_task)
+
+
+# region xrandr
+def run_xrandr():
+    try:
+        # Run the xrandr command and capture its output
+        result = subprocess.run(
+            ['xrandr'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+        return result.stdout
+    except subprocess.CalledProcessError as e:
+        print(f"An error occurred while running xrandr: {e}")
+        print(f"Error output: {e.stderr}")
+
+
+def parse_xrandr_output(xrandr_output):
+    connected_displays = []
+    lines = xrandr_output.splitlines()
+    for line_idx, line in enumerate(lines):
+        if " connected " in line:
+            display = SimpleNamespace()
+            display.name = line.split()[0]
+            if line_idx+1 < len(lines):
+                next_line_items = lines[line_idx+1].split()
+                display.max_resolution = next_line_items[0]
+                display.refresh_rates = []
+                for refresh_rate in next_line_items[1:]:
+                    is_current = False
+                    is_preferred = False
+                    if '+' in refresh_rate:
+                        is_preferred = True
+                        refresh_rate = refresh_rate.replace('+', '')
+                    if '*' in refresh_rate:
+                        is_current = True
+                        refresh_rate = refresh_rate.replace('*', '')
+                    display.refresh_rates.append(refresh_rate)
+                    if is_current:
+                        display.current_refresh_rate = refresh_rate
+                    if is_preferred:
+                        display.preferred_refresh_rate = refresh_rate
+
+            # display.highest_resolution = line
+            connected_displays.append(display)
+    return connected_displays
+
+# endregion
 
 
 # region Commands
 
 def RELOAD_GAMEOVER():
     reload_script()
+
+
+def CHANGE_INPUT_LANGUAGE():
+    if CHANGE_INPUT_LANGUAGE.current_language == 'us':
+        CHANGE_INPUT_LANGUAGE.current_language = 'cn'
+        print('Language: Chinese')
+        sh('ibus engine "libpinyin"')
+    else:
+        CHANGE_INPUT_LANGUAGE.current_language = 'us'
+        print('Language: English')
+        sh('ibus engine "xkb:us::eng"')
+
+
+CHANGE_INPUT_LANGUAGE.current_language = 'us'
+
+_current_brightness = 1
+_brightness_step = 0.1
+
+
+def BRIGHTNESS(value):
+    displays = parse_xrandr_output(run_xrandr())
+    print(f'Changing brightness to {value}')
+    for display in displays:
+        sh(f'xrandr --output {display.name} --brightness {value}')
+
+
+def BRIGHTNESS_UP():
+    global _current_brightness
+    _current_brightness += _brightness_step
+    BRIGHTNESS(_current_brightness)
+
+
+def BRIGHTNESS_DOWN():
+    global _current_brightness
+    _current_brightness -= _brightness_step
+    BRIGHTNESS(_current_brightness)
 
 # endregion
 

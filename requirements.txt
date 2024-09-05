@@ -2,3 +2,6 @@
 pyperclip
 aiofiles
 rich
+wgpu
+glfw
+numpy
