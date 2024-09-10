@@ -166,6 +166,7 @@ def process_window_manager_pipe(message_str):
         title = message.arg1
         window_state.window_id = window_id
         window_state.window_title = title
+        print_focused_client()
     if message.event == 'window_title_changed':
         window_id = message.arg0
         title = message.arg1
@@ -247,13 +248,22 @@ def get_clients():
             if not '=' in line:
                 continue
             line = line[6:]
-            key, value = line.split('=')
+            tokens = line.split('=')
+            key = tokens[0]
+            value = '='.join(tokens[1:])
             key = key.strip()
             value = value.strip()
             value = value.replace('"', '')
             if key in ATTRIBUTES:
                 clients[client_id][key] = value
     return clients
+
+
+def print_focused_client():
+    clients = get_clients()
+    focused_client = clients.get('focus')
+    if focused_client:
+        pprint(focused_client)
 
 
 def get_clients_by_attr(attr, value, exact_match=True):
@@ -410,39 +420,55 @@ def WM_FOCUS_PREVIOUS():
 
 
 def WM_TOGGLE_VOLUME_CONTROL():
-    volume_clients = get_clients_by_attr('title', 'pulsemixer')
-    if not volume_clients:
-        sh('kitty --detach sh -c pulsemixer &')
+    WM_TOGGLE_FLOATING_CONSOLE_PROGRAM('pulsemixer', 800, 600)
+
+
+def WM_TOGGLE_TOP_CONTROL():
+    WM_TOGGLE_FLOATING_CONSOLE_PROGRAM('btop', 1280, 720)
+
+
+def WM_TOGGLE_FLOATING_CONSOLE_PROGRAM(program_name: str, width, height):
+    visibility_var_name = f'_{program_name}_visible'
+
+    def set_visible(value):
+        setattr(WM_TOGGLE_FLOATING_CONSOLE_PROGRAM, visibility_var_name, value)
+
+    def is_visible():
+        return getattr(WM_TOGGLE_FLOATING_CONSOLE_PROGRAM, visibility_var_name)
+
+    if not hasattr(WM_TOGGLE_FLOATING_CONSOLE_PROGRAM, visibility_var_name):
+        set_visible(False)
+
+    title = f'{program_name}_floating_console'
+    console_clients = get_clients_by_attr('title', title)
+    if not console_clients:
+        sh(f'kitty --title {title} --detach sh -c {program_name} &')
         time.sleep(0.4)
-        volume_clients = get_clients_by_attr('title', 'pulsemixer')
-    if not volume_clients:
-        print('Failed to launch pulsemixer')
+        console_clients = get_clients_by_attr('title', title)
+        set_visible(False)
+    if not console_clients:
+        print(f'Failed to launch {program_name}')
         return
-    client = list(volume_clients.values())[0]
+    client = list(console_clients.values())[0]
     winid = client['winid']
 
-    if WM_TOGGLE_VOLUME_CONTROL.visible:
-        WM_TOGGLE_VOLUME_CONTROL.visible = False
+    if is_visible():
+        set_visible(False)
         sh(f'herbstclient set_attr clients.{winid}.minimized true')
     else:
-        WM_TOGGLE_VOLUME_CONTROL.visible = True
+        set_visible(True)
         WM_BRING(winid)
         sh(f'herbstclient set_attr clients.{winid}.minimized false')
         sh(f'herbstclient set_attr clients.{winid}.floating true')
         resolution = get_screen_resolution()
-        window_x = 800
-        window_y = 600
         offset_x = 200
         offset_y = 200
         if resolution:
             screen_width, screen_height = resolution
             # center the window
-            offset_x = (screen_width - window_x) // 2
-            offset_y = (screen_height - window_y) // 2
+            offset_x = (screen_width - width) // 2
+            offset_y = (screen_height - height) // 2
 
         sh(f'herbstclient set_attr clients.{
-            winid}.floating_geometry {window_x}x{window_y}+{offset_x}+{offset_y}')
-
-
-WM_TOGGLE_VOLUME_CONTROL.visible = False
+            winid}.floating_geometry {width}x{height}+{offset_x}+{offset_y}')
 # endregion Commands
