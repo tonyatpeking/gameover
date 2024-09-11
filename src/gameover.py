@@ -252,6 +252,10 @@ _current_brightness = 1
 _brightness_step = 0.1
 
 
+def SCREENSHOT():
+    sh('flameshot gui')
+
+
 def BRIGHTNESS(value):
     displays = parse_xrandr_output(run_xrandr())
     print(f'Changing brightness to {value}')
