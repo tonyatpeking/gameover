@@ -1,3 +1,27 @@
+import traceback
+try:
+    import colored_traceback.auto
+    from colored_traceback.colored_traceback import Colorizer, add_hook, highlight
+    colorizer = Colorizer('default', None, False)
+
+except ImportError:
+    print('colored_traceback not found, printing traceback in black / white')
+    colorizer = None
+
+
+def colorize_exception(exc):
+    if not colorizer:
+        return traceback.format_exc()
+    exc_type, exc_value, exc_traceback = type(exc), exc, exc.__traceback__
+    tb_text = "".join(traceback.format_exception(
+        exc_type, exc_value, exc_traceback))
+    tb_colored = highlight(tb_text, colorizer.lexer, colorizer.formatter)
+    return tb_colored
+
+
+def print_colorized_exception(exc):
+    tb_colored = colorize_exception(exc)
+    print(tb_colored)
 
 
 def lerp_color(start_color: str, stop_color: str, t: float) -> str:

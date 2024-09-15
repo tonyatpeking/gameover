@@ -469,6 +469,6 @@ def WM_TOGGLE_FLOATING_CONSOLE_PROGRAM(program_name: str, width, height):
             offset_x = (screen_width - width) // 2
             offset_y = (screen_height - height) // 2
 
-        sh(f'herbstclient set_attr clients.{
-            winid}.floating_geometry {width}x{height}+{offset_x}+{offset_y}')
+        sh(f'herbstclient set_attr clients.{winid}.floating_geometry {
+           width}x{height}+{offset_x}+{offset_y}')
 # endregion Commands

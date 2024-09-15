@@ -3,3 +3,5 @@ __pycache__
 *.pyc
 *.pyo
 scratchpad.py
+symlinks/
+ratings.yaml

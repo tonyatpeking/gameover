@@ -16,6 +16,7 @@ from types import SimpleNamespace
 import pprint
 from shell_utils import sh
 import subprocess
+import xnview_rater
 
 DEBUG_PRINT_RAW_LINES = False
 DEBUG_PRINT_GAMER_MESSAGE_RAW = False
@@ -74,7 +75,11 @@ def make_pipe_watcher(pipe_path, process_message_fn, sleep_time):
                     if DEBUG_PRINT_RAW_LINES:
                         print(f'#### lines ####:\n{lines}')
                     for line in lines.splitlines():
-                        process_message_fn(line.strip())
+                        try:
+                            process_message_fn(line.strip())
+                        except Exception as e:
+                            print(f'Error processing message: {line}')
+                            print_colorized_exception(e)
                 await asyncio.sleep(sleep_time)
     return read_pipe
 
@@ -155,6 +160,11 @@ def process_gamer_message_pipe(message_str):
         window_manager_commands = get_commands(window_manager_ricer)
         if command in window_manager_commands:
             window_manager_commands[command](**message.kwargs)
+
+        # relay commands to xnview rater
+        xnview_rater_commands = get_commands(xnview_rater)
+        if command in xnview_rater_commands:
+            xnview_rater_commands[command](**message.kwargs)
 
     if DEBUG_PRINT_MODE_AFTER:
         print_mode_state()
