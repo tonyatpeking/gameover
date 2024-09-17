@@ -1,3 +1,6 @@
+from typing import TYPE_CHECKING, Any
+from enum import Enum
+
 import traceback
 try:
     import colored_traceback.auto
@@ -45,3 +48,38 @@ def lerp_color(start_color: str, stop_color: str, t: float) -> str:
 
     # Convert back to hex and format as a color string
     return f'#{r:02X}{g:02X}{b:02X}'
+
+
+HexColor = str
+
+rating_to_color = {
+    'Rating.SS': '#fde725',
+    'Rating.S': '#5ec962',
+    'Rating.A': '#21918c',
+    'Rating.B': '#3b528b',
+    'Rating.C': '#440154',
+    'Rating.SortByType': '#ff7725',
+}
+
+filetype_to_color = {
+    'FileType.Image': '#8c1aab',
+    'FileType.Video': '#ab5e1a',
+    'FileType.Dir': '#8c7c14',
+    'FileType.Compressed': '#453d0c',
+    'FileType.Unknown': '#858585',
+}
+
+
+def get_color(get_color_of: Any) -> HexColor:
+    if not isinstance(get_color_of, str):
+        get_color_of = str(get_color_of)
+    if get_color_of in rating_to_color:
+        return rating_to_color[get_color_of]
+    elif get_color_of in filetype_to_color:
+        return filetype_to_color[get_color_of]
+    else:
+        raise ValueError(f'Invalid value: {get_color_of}:{type(get_color_of)}')
+
+
+def colorize_substring(text: str, substring: str, color: HexColor) -> str:
+    return text.replace(substring, f'[{color}]{substring}[/]')
