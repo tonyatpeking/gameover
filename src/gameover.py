@@ -206,17 +206,25 @@ def run_xrandr():
         print(f"Error output: {e.stderr}")
 
 
+class DisplayInfo(SimpleNamespace):
+    name: str
+    max_resolution: str | None
+    refresh_rates: list[str] | None
+    current_refresh_rate: str | None
+    preferred_refresh_rate: str | None
+
+
 def parse_xrandr_output(xrandr_output):
     connected_displays = []
     lines = xrandr_output.splitlines()
     for line_idx, line in enumerate(lines):
         if " connected " in line:
-            display = SimpleNamespace()
-            display.name = line.split()[0]
+            display_info = DisplayInfo()
+            display_info.name = line.split()[0]
             if line_idx+1 < len(lines):
                 next_line_items = lines[line_idx+1].split()
-                display.max_resolution = next_line_items[0]
-                display.refresh_rates = []
+                display_info.max_resolution = next_line_items[0]
+                display_info.refresh_rates = []
                 for refresh_rate in next_line_items[1:]:
                     is_current = False
                     is_preferred = False
@@ -226,14 +234,14 @@ def parse_xrandr_output(xrandr_output):
                     if '*' in refresh_rate:
                         is_current = True
                         refresh_rate = refresh_rate.replace('*', '')
-                    display.refresh_rates.append(refresh_rate)
+                    display_info.refresh_rates.append(refresh_rate)
                     if is_current:
-                        display.current_refresh_rate = refresh_rate
+                        display_info.current_refresh_rate = refresh_rate
                     if is_preferred:
-                        display.preferred_refresh_rate = refresh_rate
+                        display_info.preferred_refresh_rate = refresh_rate
 
             # display.highest_resolution = line
-            connected_displays.append(display)
+            connected_displays.append(display_info)
     return connected_displays
 
 # endregion
@@ -269,8 +277,8 @@ def SCREENSHOT():
 def BRIGHTNESS(value):
     displays = parse_xrandr_output(run_xrandr())
     print(f'Changing brightness to {value}')
-    for display in displays:
-        sh(f'xrandr --output {display.name} --brightness {value}')
+    for display_info in displays:
+        sh(f'xrandr --output {display_info.name} --brightness {value}')
 
 
 def BRIGHTNESS_UP():
