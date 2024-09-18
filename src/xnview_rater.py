@@ -14,9 +14,16 @@ import rich
 from pydantic import BaseModel
 from collections import deque
 import shutil
+from config import GAMEOVER_DIR
+
+
 WAIT_BEFORE_CLIPBOARD_COPY = 0.05
 DOUBLE_TAP_TIME = 0.5
-RATING_CACHE_FILE = Path('/home/tony/Work/gameover/ratings.yaml')
+
+
+RATING_CACHE_FILE = GAMEOVER_DIR / 'xnview_rater' / 'ratings.yaml'
+# create the folder if it doesn't exist
+RATING_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 
 class RatingCache:
