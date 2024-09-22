@@ -30,6 +30,33 @@ If you are here you are probably a power user and hate GUIs. Hear me out. The an
 - Now gameover has a internal map of your keyboard and mouse.
 - You can repeat the process for different keyboards or mouse devices.
 
+#### Events
+
+- Window Context Change
+- Hardware Key Press
+- Custom (time of day, repeating, triggered by watcher, etc.)
+- Watcher can watch website, api, screen section, etc.
+- Set watcher frequency
+- Brain Computer Interface
+
+#### Dynamic Mapping
+
+#### Output
+
+- Send Software Key Press 
+- Move mouse
+- Window move
+- Execute bash / python / cmd script
+- Send notification
+- Play macro
+
+
+#### Support different backends
+
+
+
+#### Support screen capture, mouse move, window move, based on backend
+
 #### Output Mapping
 
 - Start the GUI.

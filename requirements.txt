@@ -9,3 +9,6 @@ PyYAML
 colored-traceback
 pydantic
 platformdirs
+textual
+textual-dev
+httpx
