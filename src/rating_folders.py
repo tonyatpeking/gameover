@@ -47,12 +47,22 @@ rating_to_folder_map = {
 }
 
 
-def is_sort_by_type_folder(folder: str) -> bool:
+def is_filetype_folder(folder: str) -> bool:
     video_sort_by_type_folders = rating_to_subfolder(
         Rating.SortByType, FileType.Video)
     image_sort_by_type_folders = rating_to_subfolder(
         Rating.SortByType, FileType.Image)
     return folder == video_sort_by_type_folders or folder == image_sort_by_type_folders
+
+
+def is_rating_folder(folder: str):
+    if not hasattr(is_rating_folder, 'rating_folders'):
+        is_rating_folder.rating_folders = set()
+        for filetype in rating_to_folder_map:
+            for rating in rating_to_folder_map[filetype]:
+                rating_folder = rating_to_subfolder(rating, filetype)
+                is_rating_folder.rating_folders.add(rating_folder)
+    return folder in is_rating_folder.rating_folders
 
 
 NO_SUBFOLDER = ''

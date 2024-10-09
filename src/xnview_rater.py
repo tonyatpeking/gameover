@@ -8,13 +8,14 @@ import pyperclip
 from pprint import pprint
 import path_utils
 from path_utils import FileType
-from rating_folders import Rating, rating_to_subfolder, is_sort_by_type_folder
+from rating_folders import Rating, rating_to_subfolder, is_filetype_folder, is_rating_folder
 import time
 import rich
 from pydantic import BaseModel
 from collections import deque
 import shutil
 from config import GAMEOVER_DIR
+from rich.tree import Tree
 
 
 WAIT_BEFORE_CLIPBOARD_COPY = 0.05
@@ -25,6 +26,9 @@ RATING_CACHE_FILE = GAMEOVER_DIR / 'xnview_rater' / 'ratings.yaml'
 # create the folder if it doesn't exist
 RATING_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
 
+ACTION_BUFFER_FILE = GAMEOVER_DIR / 'xnview_rater' / 'actions.yaml'
+ACTION_BUFFER_FILE.parent.mkdir(parents=True, exist_ok=True)
+
 
 class RatingCache:
     def __init__(self, ratings_filepath: Path):
@@ -32,8 +36,8 @@ class RatingCache:
         Schema:
         {
             'parent_dir': {
-                'file1': 'rating',
-                'file2': 'rating',
+                'file1': 'rating folder',
+                'file2': 'rating folder',
                 ...
             },
             ...
@@ -62,7 +66,7 @@ class RatingCache:
                 return True
             return False
 
-    def rate_path(self, path: Path, rating: Rating):
+    def rate_path(self, path: Path, rating: Rating, filetype: FileType | str = 'auto'):
         parent = str(path.parent)
         if parent not in self._rating_cache:
             self._rating_cache[parent] = {}
@@ -70,11 +74,44 @@ class RatingCache:
             if path.name in self._rating_cache[parent]:
                 del self._rating_cache[parent][path.name]
         else:
-            self._rating_cache[parent][path.name] = rating.value
+            if filetype == 'auto':
+                filetype = path_utils.get_filetype(path)
+            rating_folder = rating_to_subfolder(rating, filetype)
+            self._rating_cache[parent][path.name] = rating_folder
 
     def clear_cache(self):
         self._rating_cache = {}
         self.dump()
+
+    def move_rated_to_dir(self):
+
+        # [(from, to), (from, to), ...]
+        from_to = deque()
+
+        for parent, files in self._rating_cache.items():
+            parent = Path(parent)
+            target_parent = parent
+            parent_name = parent.name
+            if is_filetype_folder(parent_name):
+                target_parent = parent.parent
+
+            for file, rating_folder in files.items():
+
+                from_path = parent / file
+                to_path = target_parent / \
+                    rating_folder / file
+                filetype = path_utils.get_filetype(from_path)
+                # process dirs last
+                if filetype == FileType.Dir:
+                    from_to.appendleft((from_path, to_path))
+                else:
+                    from_to.append((from_path, to_path))
+        # pprint(from_to)
+        for from_path, to_path in from_to:
+            if not to_path.parent.exists():
+                os.makedirs(to_path.parent)
+            shutil.move(from_path, to_path.parent)
+        self.clear_cache()
 
 
 rating_cache: RatingCache = RatingCache(RATING_CACHE_FILE)
@@ -86,8 +123,8 @@ class RatingSummary:
         Schema:
         {
             'parent_dir': {
-                (rating, filetype): count,
-                (rating, filetype): count,
+                rating_dir: count,
+                rating_dir: count,
                 ...
             },
             ...
@@ -96,13 +133,10 @@ class RatingSummary:
         self.rating_summary = {}
         for parent, files in rating_cache._rating_cache.items():
             self.rating_summary[parent] = {}
-            for file, rating in files.items():
-                file_full_path = Path(parent) / file
-                filetype = path_utils.get_filetype(file_full_path)
-                rating_filetype = (Rating(rating), filetype)
-                if rating_filetype not in self.rating_summary[parent]:
-                    self.rating_summary[parent][rating_filetype] = 0
-                self.rating_summary[parent][rating_filetype] += 1
+            for _, rating_folder in files.items():
+                if rating_folder not in self.rating_summary[parent]:
+                    self.rating_summary[parent][rating_folder] = 0
+                self.rating_summary[parent][rating_folder] += 1
 
     def print_summary(self):
         rich.print('[bold on #004477]      SUMMARY      [/]')
@@ -111,13 +145,9 @@ class RatingSummary:
         for parent, folders in self.rating_summary.items():
             rich.print(f'[{get_color(FileType.Dir)}]{parent}[/]')
             entries = []
-            for (rating, filetype), count in folders.items():
-                foldername_colored = rating_to_subfolder(
-                    rating, filetype, colorize=True)
-                rating_color = get_color(rating)
-                if not foldername_colored:
-                    foldername_colored = f'Will not move {rating} {filetype}'
-                entry = f'{foldername_colored} : [{rating_color}]{count}[/]'
+            for rating_folder, count in folders.items():
+
+                entry = f'{rating_folder} : {count}'
                 entries.append(entry)
             entries = sorted(entries, key=lambda x: x[0])
             for entry in entries:
@@ -126,21 +156,104 @@ class RatingSummary:
         rich.print('[bold on #004477]      END SUMMARY      [/]')
 
 
-def _xn_rate_path(path: Path, rating: Rating):
-    rating_cache.rate_path(path, rating)
+class ActionBuffer:
+    def __init__(self, buffer_filepath: Path):
+        '''
+        Schema:
+        {
+            'action':  'action',
+            'from': ['path/to/file1', 'path/to/file2', ...],
+            'to': ['path/to/file1', 'path/to/file2', ...],
+        }
+        '''
+        self.buffer_file = buffer_filepath
+        self.buffer = {}
+
+    def set_action(self, action: str):
+        self.buffer['action'] = action
+
+    def set_from(self, from_path: list[Path]):
+        self.buffer['from'] = from_path
+
+    def set_to(self, to_path: list[Path]):
+        self.buffer['to'] = to_path
+
+    def clear(self):
+        self.buffer = {}
+
+    def dump(self):
+        with open(self.buffer_file, 'w') as file:
+            yaml.dump(self.buffer, file, sort_keys=False, allow_unicode=True)
+        print(f'Action buffer dumped to {self.buffer_file}')
+
+    def load(self):
+        with open(self.buffer_file, 'r') as file:
+            self.buffer = yaml.load(file, Loader=yaml.FullLoader)
+            if self.buffer is None:
+                self.buffer = {}
+        print(f'Action buffer loaded from {self.buffer_file}')
+
+    def make_summary_tree(self):
+        tree = Tree('Action Buffer')
+
+
+action_buffer = ActionBuffer(ACTION_BUFFER_FILE)
 
 
 async def try_xn_rate_clipboard_path(rating: str):
+    try:
+        paths = await get_clipboard_paths()
+        for path in paths:
+            rating_cache.rate_path(path, Rating(rating))
+            # pprint(rating_cache, indent=2)
+    except Exception as e:
+        print_colorized_exception(e)
+
+
+async def try_xn_rate_clipboard_image_set(rating: str):
+    try:
+        paths = await get_clipboard_paths()
+        for path in paths:
+            set_dir = None
+            filetype = path_utils.get_filetype(path)
+            if filetype == FileType.Dir:
+                set_dir = path
+            elif filetype == FileType.Image:
+                set_dir = path.parent
+            else:
+                raise Exception(f'Unsupported filetype: {filetype}')
+
+            if is_rating_folder(set_dir.name):
+                set_dir = set_dir.parent
+
+            rating_cache.rate_path(set_dir, Rating(rating), FileType.Image)
+            # pprint(rating_cache, indent=2)
+    except Exception as e:
+        print_colorized_exception(e)
+
+
+async def get_clipboard_paths():
     await asyncio.sleep(WAIT_BEFORE_CLIPBOARD_COPY)
     clip = pyperclip.paste()
-    # check if clip is a valid path
+    paths = [Path(path) for path in clip.split('\n')]
+    for path in paths:
+        if not path.exists():
+            continue
+    return paths
+
+
+async def try_xn_set_from_buffer():
     try:
-        paths = [Path(path) for path in clip.split('\n')]
-        for path in paths:
-            if not path.exists():
-                continue
-            _xn_rate_path(path, Rating(rating))
-            # pprint(rating_cache, indent=2)
+        paths = await get_clipboard_paths()
+        action_buffer.set_from(paths)
+    except Exception as e:
+        print_colorized_exception(e)
+
+
+async def try_xn_set_to_buffer():
+    try:
+        paths = await get_clipboard_paths()
+        action_buffer.set_to(paths)
     except Exception as e:
         print_colorized_exception(e)
 
@@ -158,43 +271,9 @@ async def try_xn_sort_by_type():
             elif path.is_file():
                 dir = path.parent
             for file in dir.iterdir():
-                _xn_rate_path(file, Rating.SortByType)
+                rating_cache.rate_path(file, Rating.SortByType)
     except Exception as e:
         print_colorized_exception(e)
-
-
-def move_rated_to_dir():
-
-    # [(from, to), (from, to), ...]
-    from_to = deque()
-
-    for parent, files in rating_cache._rating_cache.items():
-        parent = Path(parent)
-        target_parent = parent
-        parent_name = parent.name
-        if is_sort_by_type_folder(parent_name):
-            target_parent = parent.parent
-
-        for file, rating in files.items():
-
-            from_path = parent / file
-            filetype = path_utils.get_filetype(from_path)
-            rating = Rating(rating)
-
-            to_path = target_parent / \
-                rating_to_subfolder(rating, filetype) / file
-
-            if filetype == FileType.Dir:
-                from_to.appendleft((from_path, to_path))
-            else:
-                from_to.append((from_path, to_path))
-
-    # pprint(from_to)
-    for from_path, to_path in from_to:
-        if not to_path.parent.exists():
-            os.makedirs(to_path.parent)
-        shutil.move(from_path, to_path.parent)
-    rating_cache.clear_cache()
 
 
 def move_rated_to_dir_sequence():
@@ -204,21 +283,20 @@ def move_rated_to_dir_sequence():
     '''
     if not hasattr(move_rated_to_dir_sequence, 'last_tap_time',):
         move_rated_to_dir_sequence.last_tap_time = 0
-
     current_time = time.time()
-
     if current_time - move_rated_to_dir_sequence.last_tap_time < DOUBLE_TAP_TIME:
         # Double tap detected
-        move_rated_to_dir()  # Function to move files
+        rating_cache.move_rated_to_dir()  # Function to move files
     else:
         # Single tap detected
-
         rating_cache.dump()
-
         rating_summary = RatingSummary(rating_cache)
         rating_summary.print_summary()
-
     move_rated_to_dir_sequence.last_tap_time = current_time
+
+
+def XN_RATE_CLIPBOARD_SET(rating: str):
+    asyncio.create_task(try_xn_rate_clipboard_image_set(rating))
 
 
 def XN_RATE_CLIPBOARD_PATH(rating: str):
@@ -245,6 +323,26 @@ def XN_LOAD_RATINGS_FILE():
     rating_cache.load()
     rating_summary = RatingSummary(rating_cache)
     rating_summary.print_summary()
+
+
+def XN_UNIFY_RATING_FOLDERS():
+    pass
+
+
+def XN_SET_FROM_BUFFER():
+    pass
+
+
+def XN_SET_TO_BUFFER():
+    pass
+
+
+def XN_DUMP_ACTIONS():
+    pass
+
+
+def XN_RUN_ACTIONS():
+    pass
 
 
 if __name__ == '__main__':

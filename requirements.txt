@@ -12,3 +12,4 @@ platformdirs
 textual
 textual-dev
 httpx
+openai

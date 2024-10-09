@@ -17,6 +17,7 @@ import pprint
 from shell_utils import sh
 import subprocess
 import xnview_rater
+import macros
 
 DEBUG_PRINT_RAW_LINES = False
 DEBUG_PRINT_GAMER_MESSAGE_RAW = False
@@ -165,6 +166,11 @@ def process_gamer_message_pipe(message_str):
         xnview_rater_commands = get_commands(xnview_rater)
         if command in xnview_rater_commands:
             xnview_rater_commands[command](**message.kwargs)
+
+        # relay commands to macros
+        macros_commands = get_commands(macros)
+        if command in macros_commands:
+            macros_commands[command](**message.kwargs)
 
     if DEBUG_PRINT_MODE_AFTER:
         print_mode_state()

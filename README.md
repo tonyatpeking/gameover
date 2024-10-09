@@ -14,9 +14,22 @@ gameover (Gamer Overlay) is a Python project that provides an overlay for deskto
 
 ## Usage
 
+## Logging and Debugging
+
+- Log all events, this can help with debugging when you want to know how the program got into a certain state.
+
 ## GUI
 
 If you are here you are probably a power user and hate GUIs. Hear me out. The animosity towards GUIs is mostly because of mouse usage. This GUI is designed to be used by a keyboard. The main advantage of this GUI is so that you have visual feedback of what layer you are on, what key does what, and easy configuration on the fly.
+
+#### Layout
+
+- Tabs with layers like oryx https://configure.zsa.io/ergodox-ez/layouts/Yn9EZ/B556v/0
+- Layer activation criteria
+    - Window context
+    - Layer Toggle / Hold Key
+
+
 
 ### Getting started with the GUI
 
@@ -30,6 +43,10 @@ If you are here you are probably a power user and hate GUIs. Hear me out. The an
 - Now gameover has a internal map of your keyboard and mouse.
 - You can repeat the process for different keyboards or mouse devices.
 
+#### Window Context Mapping
+
+- Window class / title 
+
 #### Events
 
 - Window Context Change
@@ -41,7 +58,10 @@ If you are here you are probably a power user and hate GUIs. Hear me out. The an
 
 #### Dynamic Mapping
 
-#### Output
+- Different mapping based on State / Layer / Context
+
+
+#### Action
 
 - Send Software Key Press 
 - Move mouse
@@ -49,6 +69,60 @@ If you are here you are probably a power user and hate GUIs. Hear me out. The an
 - Execute bash / python / cmd script
 - Send notification
 - Play macro
+
+
+```
+
+class 
+
+event
+    key.press
+context
+    when
+action
+    call fn
+    set state
+
+```
+
+#### Image Tagger Dedupe Organizer
+
+- Embedding
+    - Model
+    - Bits
+- Tagging
+- Dedupe
+
+
+
+
+#### Action Buffers
+
+- YAML
+- Undo Redo Tree
+
+Example
+```yaml
+- function_1: arg1
+- function_2: [arg1, arg2]
+- function_3: {arg1_name: arg1_value, arg2_name: arg2_value}
+- function_4:
+    - arg1_name: arg1_value
+    - arg2_name: arg2_value
+```
+
+Schema
+```yaml
+
+
+
+```
+- Clipboard List
+    - Clipboard Watcher Always Pushes to Clipboard List
+    - PushTop PushBottom PopTop PopBottom
+- Paste / Execute Buffer Item
+
+
 
 
 #### Support different backends

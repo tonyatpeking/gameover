@@ -360,7 +360,7 @@ def WM_LAUNCH():
 
 
 def WM_LAUNCH_TERMINAL():
-    subprocess.run(['herbstclient', 'spawn', 'kitty'])
+    subprocess.run(['herbstclient', 'spawn', 'wezterm'])
 
 
 def WM_SPLIT():
