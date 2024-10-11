@@ -11,6 +11,10 @@ from enum import Enum
 import os
 from openai import AsyncOpenAI
 
+NUM_QUESTIONS = 5
+QUESTIONS_TO_GRADE = {3: 'gpt-4o', 4: 'gpt-4o', 5: 'gpt-4o'}
+# QUESTIONS_TO_GRADE = {3: 'gpt-4o-mini'}
+
 
 client = AsyncOpenAI(
     # This is the default and can be omitted
@@ -18,7 +22,147 @@ client = AsyncOpenAI(
 )
 
 
-async def ask_llm(prompt: str, model: str = "gpt-4o-mini"):
+def calculate_score(correct_answers: int, total_subproblems: int, minor_mistakes: int, major_mistakes: int, show_your_work_detail_level: int):
+    MINOR_MISTAKE_MULTIPLIER = 1
+    MAJOR_MISTAKE_MULTIPLIER = 2
+    SHOW_YOUR_WORK_BONUS = {
+        # detail_level: (scaled_bonus, flat_bonus)
+        3: (10, 2),  # very_detailed
+        2: (8, 1),  # detailed
+        1: (6, 0),  # somewhat_detailed
+        0: (0, -5)  # did_not_show_work
+    }
+    assert 0 <= correct_answers <= total_subproblems
+    assert 0 <= minor_mistakes
+    assert 0 <= major_mistakes
+    assert show_your_work_detail_level in SHOW_YOUR_WORK_BONUS.keys()
+    scaled_bonus, flat_bonus = SHOW_YOUR_WORK_BONUS[show_your_work_detail_level]
+
+    # Correctness, how many questions out of total subproblems are correct
+    points = correct_answers / total_subproblems * 20
+
+    # Reasoning Mistakes, deduct points for minor and major reasoning mistakes
+    points = points - minor_mistakes * MINOR_MISTAKE_MULTIPLIER - \
+        major_mistakes * MAJOR_MISTAKE_MULTIPLIER
+    points = max(points, 0)
+
+    # Show your work bonus, add point for showing your work
+    # The scaled component is based on how close the points are to 0, the way a student that showed detailed work but got all the answers wrong can still get a big bonus
+    points = points + (1 - (points / 20)) * scaled_bonus
+    # The flat bonus is here to allow students that made a few minor mistakes to still get the max score if they showed their work
+    # Students that did not show any work will also be penalized here
+    points = points + flat_bonus
+
+    points = min(max(points, 0), 20)
+
+    points = round(points)
+    return points
+
+
+def test_calculate_score():
+    print(calculate_score(correct_answers=3, total_subproblems=4, minor_mistakes=1,
+          major_mistakes=1, show_your_work_detail_level=2))
+    print(calculate_score(correct_answers=0, total_subproblems=4,
+          minor_mistakes=1, major_mistakes=1, show_your_work_detail_level=3))
+    print(calculate_score(correct_answers=4, total_subproblems=4, minor_mistakes=0,
+          major_mistakes=0, show_your_work_detail_level=0))
+    print(calculate_score(correct_answers=4, total_subproblems=4, minor_mistakes=4,
+          major_mistakes=1, show_your_work_detail_level=3))
+
+
+def calculate_points_for_text(text: str):
+
+    # remove first line if it starts with <mark>Total Score
+    if text.startswith('<mark>Total Score'):
+        text_lines = text.split('\n')[1:]
+        text = '\n'.join(text_lines)
+
+    import re
+
+    # Find all sections that start with <mark> START OF SUMMARY </mark> and end with <mark> END OF SUMMARY </mark>
+    summary_pattern = re.compile(
+        r'START OF SUMMARY(.*?)END OF SUMMARY', re.DOTALL)
+    summary_matches = summary_pattern.finditer(text)
+
+    if not summary_matches:
+        return text
+
+    for summary_match in summary_matches:
+        summary_text = summary_match.group(1)
+
+        # Extract the total_subproblems, correct_answers, minor_mistakes, major_mistakes, show_your_work_detail_level
+        total_subproblems_match = re.search(
+            r'total_subproblems: (\d+)', summary_text)
+        correct_answers_match = re.search(
+            r'correct_answers: (\d+)', summary_text)
+        minor_mistakes_match = re.search(
+            r'minor_mistakes: (\d+)', summary_text)
+        major_mistakes_match = re.search(
+            r'major_mistakes: (\d+)', summary_text)
+        show_your_work_detail_level_match = re.search(
+            r'show_your_work_detail_level: (\d+)', summary_text)
+        question_number_match = re.search(
+            r'(Q\d+) Points =', summary_text)
+
+        assert total_subproblems_match is not None
+        assert correct_answers_match is not None
+        assert minor_mistakes_match is not None
+        assert major_mistakes_match is not None
+        assert show_your_work_detail_level_match is not None
+        assert question_number_match is not None
+        total_subproblems = int(total_subproblems_match.group(1))
+        correct_answers = int(correct_answers_match.group(1))
+        minor_mistakes = int(minor_mistakes_match.group(1))
+        major_mistakes = int(major_mistakes_match.group(1))
+        show_your_work_detail_level = int(
+            show_your_work_detail_level_match.group(1))
+        question_number = question_number_match.group(1)
+        # print(f"total_subproblems: {total_subproblems}")
+        # print(f"correct_answers: {correct_answers}")
+        # print(f"minor_mistakes: {minor_mistakes}")
+        # print(f"major_mistakes: {major_mistakes}")
+        # print(f"show_your_work_detail_level: {show_your_work_detail_level}")
+        # print(f"question_number: {question_number}")
+
+        # Calculate the score
+        score = calculate_score(correct_answers, total_subproblems,
+                                minor_mistakes, major_mistakes, show_your_work_detail_level)
+        # print(f"score: {score}")
+
+        # Update the text with the calculated score
+        text = re.sub(f'<mark>{question_number} Points = -?\d+</mark>',
+                      f'<mark>{question_number} Points = {score}</mark>', text)
+
+    scores_builder = []
+    total_score = 0
+    # gather all the points that are in the format <mark> Points: X </mark> and print them
+    points_pattern = re.compile(r'<mark>Points = (\d+)')
+    points_matches = points_pattern.finditer(text)
+    for points_match in points_matches:
+        score = points_match.group(1)
+        # print(f"score: {score}")
+        scores_builder.append(score)
+        total_score += int(score)
+
+    # gather all the points that are in the format <mark> QN Points: X </mark>  including QN if present
+
+    points_pattern = re.compile(r'<mark>(Q\d+) Points = (-?\d+)</mark>')
+    points_matches = points_pattern.finditer(text)
+    for points_match in points_matches:
+        question_number = points_match.group(
+            1) if points_match.group(1) else 'N/A'
+        score = points_match.group(2)
+        print(f'question_number: {question_number}, score: {score}')
+        scores_builder.append(question_number + ': ' + score)
+        total_score += int(score)
+
+    scores_builder = f'<mark>Total Score = {str(total_score)} = {
+        " + ".join(scores_builder)}</mark>'
+
+    return scores_builder + '\n' + text
+
+
+async def ask_llm(prompt: str, model: str = 'gpt-4o-mini'):
     rich.print('[#ffff00]  [/]    ask_llm      [#ffff00]  [/]')
     completion = await client.chat.completions.create(
         model=model,
@@ -129,15 +273,13 @@ def select_all_copy():
     input_raw('Control{A} 20ms Control{C}')
 
 
-class QuestionStatus(Enum):
-    TO_BE_GRADED = 'TO_BE_GRADED'
-    GRADED = 'GRADED'
-    GRADING = 'GRADING'
-    ERROR = 'ERROR'
-
-
-NUM_QUESTIONS = 5
-QUESTIONS_TO_GRADE = {3: 'gpt-4o-mini', 4: 'gpt-4o-mini', 5: 'gpt-4o-mini'}
+class Status(Enum):
+    ERROR_PARSING_TEXT = '#ff4477'
+    TO_BE_GRADED = '#004477'
+    LLM_GRADED = '#00CC00'
+    LLM_GRADING = '#AAAA33'
+    HUMAN_GRADED = '#444444'
+    SKIPPED = '#333333'
 
 
 class Entry:
@@ -154,12 +296,32 @@ class Entry:
         self.question_file_template = '/home/tony/gdrive/SMU Classes/TA 2024 Fall/Algorithm Engineering CS5350 CS7350/Assignment-1/Assignment-1-q{}.md'
         self.sections = self.parse_sections()
 
-        self.question_statuses: dict[int, QuestionStatus] = {}
-        self.question_statuses = {
-            i: QuestionStatus.TO_BE_GRADED for i in range(1, NUM_QUESTIONS + 1)}
+        self.question_statuses: dict[str, Status] = self.get_initial_statuses(
+            self.sections)
 
         self.prompts = self.prepare_prompts()
         self.responses = {}
+
+    def get_initial_statuses(self, sections):
+        statuses = {}
+
+        for question_number in range(1, NUM_QUESTIONS + 1):
+            question_name = self.question_start_template.format(
+                question_number)
+            if self.sections.get(question_name) is None:
+                statuses[question_name] = Status.ERROR_PARSING_TEXT
+            else:
+                statuses[question_name] = Status.SKIPPED
+
+            answer_name = self.student_answer_template.format(question_number)
+            if self.sections.get(answer_name) is None:
+                statuses[answer_name] = Status.ERROR_PARSING_TEXT
+            elif question_number in QUESTIONS_TO_GRADE.keys():
+                statuses[answer_name] = Status.TO_BE_GRADED
+            else:
+                statuses[answer_name] = Status.SKIPPED
+
+        return statuses
 
     def prepare_prompts(self):
         prompts = {}
@@ -176,6 +338,10 @@ class Entry:
                 question_prompt = file.read()
 
             section_name = self.student_answer_template.format(question_number)
+
+            if section_name not in self.sections:
+                continue
+
             student_answer = self.sections[section_name]
             student_answer = '\n'.join(student_answer)
 
@@ -184,10 +350,6 @@ class Entry:
                 ANSWER_START + \
                 student_answer + \
                 ANSWER_END
-
-        for section_name, prompt in prompts.items():
-            rich.print(f'[bold on #004477]    {section_name}  [/]')
-            print(prompt)
 
         return prompts
 
@@ -225,45 +387,89 @@ class Entry:
 
         bad_parse_result = False
 
-        if len(sections) != NUM_QUESTIONS * 2:
-            bad_parse_result = True
-
-        for section_name, section_lines in sections.items():
-            if len(section_lines) < 3:
-                bad_parse_result = True
-
-        if bad_parse_result:
-
-            rich.print(f'[bold on #ff4477]  {self.filename}  [/]')
-            for section_name, section_lines in sections.items():
-                rich.print(f'[bold on #ff4477]    {section_name} : {
-                    len(section_lines)} lines   [/]')
-
         return sections
 
     async def grade_with_llm(self, question_number: int):
+        section_name = self.student_answer_template.format(question_number)
         async with Entry.lock:
-            if self.question_statuses[question_number] != QuestionStatus.TO_BE_GRADED:
+            if self.question_statuses[section_name] != Status.TO_BE_GRADED:
                 rich.print(f'[bold on #ff4477]  {self.filename}  [/]')
                 rich.print(f'[bold on #ff4477]  question {
-                           question_number} is already being graded  [/]')
+                           question_number} is not in TO_BE_GRADED state [/]')
                 return
-            self.question_statuses[question_number] = QuestionStatus.GRADING
+            self.question_statuses[section_name] = Status.LLM_GRADING
 
         async with Entry.llm_semaphore:
 
-            section_name = self.student_answer_template.format(question_number)
             prompt = self.prompts[section_name]
             model = QUESTIONS_TO_GRADE[question_number]
             response = await ask_llm(prompt, model)
             self.responses[section_name] = response
-            print(response)
 
             async with Entry.lock:
-                self.question_statuses[question_number] = QuestionStatus.GRADED
+                self.question_statuses[section_name] = Status.LLM_GRADED
+            cs7350a1.print_status()
 
-            rich.print(f'[bold on #004477] {self.filename}\n   question {
-                question_number} done grading  [/]')
+    def is_all_graded(self):
+
+        for question_number in QUESTIONS_TO_GRADE.keys():
+            section_name = self.student_answer_template.format(question_number)
+            if self.question_statuses[section_name] != Status.LLM_GRADED:
+                return False
+
+        return True
+
+    def mark_as_human_graded(self):
+        for question_number in QUESTIONS_TO_GRADE.keys():
+            section_name = self.student_answer_template.format(question_number)
+            self.question_statuses[section_name] = Status.HUMAN_GRADED
+
+    def build_full_graded_document(self):
+        sections_list = []
+
+        for question_number in range(1, NUM_QUESTIONS + 1):
+            question_name = self.question_start_template.format(
+                question_number)
+            answer_name = self.student_answer_template.format(question_number)
+
+            sections_list.append('\n'.join(self.sections[question_name]))
+
+            if question_number in QUESTIONS_TO_GRADE.keys():
+                sections_list.append(self.responses[answer_name])
+            else:
+                sections_list.append('\n'.join(self.sections[answer_name]))
+
+        return '\n'.join(sections_list)
+
+    def print_status(self):
+        filename = self.filename
+        is_error = any(
+            status == Status.ERROR_PARSING_TEXT for status in self.question_statuses.values())
+
+        if is_error:
+            file_status = Status.ERROR_PARSING_TEXT.value
+        elif any(status == Status.LLM_GRADING for status in self.question_statuses.values()):
+            file_status = Status.LLM_GRADING.value
+        elif self.is_all_graded():
+            file_status = Status.LLM_GRADED.value
+        elif all(status == Status.HUMAN_GRADED for status in self.question_statuses.values()):
+            file_status = Status.HUMAN_GRADED.value
+        else:
+            file_status = Status.TO_BE_GRADED.value
+
+        status_string = f'[bold on {file_status}]{filename[:20]}[/]'
+        for question_number in range(1, NUM_QUESTIONS + 1):
+            question_name = self.question_start_template.format(
+                question_number)
+            question_status = self.question_statuses[question_name].value
+            status_string += f' [bold on {question_status}]Q{
+                question_number}[/]'
+
+            answer_name = self.student_answer_template.format(question_number)
+            answer_status = self.question_statuses[answer_name].value
+            status_string += f' [bold on {answer_status}]A{question_number}[/]'
+
+        rich.print(status_string)
 
 
 class CS7350A1:
@@ -291,18 +497,15 @@ class CS7350A1:
         filename = await self.get_filename()
         content = await self.select_all_copy()
         self.entries[filename] = Entry(filename, content)
+        self.print_status()
 
-        rich.print(f'[bold on #004477]  entries: {
-                   len(self.entries)}  [/]')
-
-        for entry_name, entry in self.entries.items():
-            rich.print(f'[bold on #004477]    {entry_name}    [/]')
-            PRINT_SECTIONS = False
-
-            for section_name, section in entry.sections.items():
-                if PRINT_SECTIONS:
-                    rich.print(f'[bold on #004477]      {section_name} : {
-                        len(section)} lines   [/]')
+    async def calculate_points(self):
+        content = await self.select_all_copy()
+        # find sections that start with <mark> START OF SUMMARY </mark> and end with <mark> END OF SUMMARY </mark>
+        content = calculate_points_for_text(content)
+        pyperclip.copy(content)
+        await asyncio.sleep(0.1)
+        output_raw('Control{A} 20ms Control{V} 20ms Control{Home}')
 
     async def grade_with_llm(self):
         filename = await self.get_filename()
@@ -315,6 +518,36 @@ class CS7350A1:
 
         for question_number in QUESTIONS_TO_GRADE:
             asyncio.create_task(entry.grade_with_llm(question_number))
+        await asyncio.sleep(0.1)
+        self.print_status()
+
+    async def diff_response_with_current(self):
+        filename = await self.get_filename()
+        entry = self.entries.get(filename)
+
+        if entry is None:
+            rich.print(f'[bold on #ff4477]  {filename}  [/]')
+            rich.print(f'[bold on #ff4477]  entry not found  [/]')
+            return
+
+        if not entry.is_all_graded():
+            rich.print(f'[#000000 on #FFFF00]  {filename}  [/]')
+            rich.print(f'[#000000 on #FFFF00]  Not done grading  [/]')
+            return
+
+        full_graded_document = entry.build_full_graded_document()
+        pyperclip.copy(full_graded_document)
+
+        await asyncio.sleep(0.1)
+
+        output_raw('Control{G} D')
+
+        entry.mark_as_human_graded()
+        self.print_status()
+
+    def print_status(self):
+        for filename, entry in self.entries.items():
+            entry.print_status()
 
 
 cs7350a1 = CS7350A1()
@@ -339,11 +572,14 @@ def MACRO_2():
 
 def MACRO_3():
     rich.print('[bold on #004477]      MACRO_3      [/]')
+    try_async_macro(cs7350a1.diff_response_with_current)
 
 
 def MACRO_4():
     rich.print('[bold on #004477]      MACRO_4      [/]')
+    try_async_macro(cs7350a1.calculate_points)
 
 
 def MACRO_5():
     rich.print('[bold on #004477]      MACRO_5      [/]')
+    try_async_macro(cs_7350_a1_q2)
