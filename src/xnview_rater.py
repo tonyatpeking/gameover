@@ -92,7 +92,7 @@ class RatingCache:
             parent = Path(parent)
             target_parent = parent
             parent_name = parent.name
-            if is_filetype_folder(parent_name):
+            if is_rating_folder(parent_name):
                 target_parent = parent.parent
 
             for file, rating_folder in files.items():
@@ -110,7 +110,10 @@ class RatingCache:
         for from_path, to_path in from_to:
             if not to_path.parent.exists():
                 os.makedirs(to_path.parent)
-            shutil.move(from_path, to_path.parent)
+            if to_path.parent.name == rating_to_subfolder(Rating.Face, filetype):
+                shutil.copy(from_path, to_path.parent)
+            else:
+                shutil.move(from_path, to_path.parent)
         self.clear_cache()
 
 

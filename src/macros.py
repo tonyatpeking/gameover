@@ -15,10 +15,14 @@ NUM_QUESTIONS = 5
 QUESTIONS_TO_GRADE = {3: 'gpt-4o', 4: 'gpt-4o', 5: 'gpt-4o'}
 # QUESTIONS_TO_GRADE = {3: 'gpt-4o-mini'}
 
+# read OPENAI_API_KEY from file
+with open('/home/tony/openai_api_key.txt', 'r') as file:
+    OPENAI_API_KEY = file.read().strip()
 
 client = AsyncOpenAI(
     # This is the default and can be omitted
-    api_key=os.environ.get("OPENAI_API_KEY"),
+    # api_key=os.environ.get("OPENAI_API_KEY"),
+    api_key=OPENAI_API_KEY
 )
 
 

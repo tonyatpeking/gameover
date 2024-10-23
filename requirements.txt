@@ -13,3 +13,9 @@ textual
 textual-dev
 httpx
 openai
+nicegui
+pywebview
+qtpy
+pyqt5
+PyQtWebEngine
+gradio
