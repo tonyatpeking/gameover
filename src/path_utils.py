@@ -15,8 +15,7 @@ from enum import Enum
 # recursively make dirs
 # Path(filepath).mkdir(parents=True)
 
-IMAGE_SUFFIXES = ['.jpg', '.jpeg', '.png', '.bmp', '.gif', '.webp', 'ppm', 'tiff', 'tif',
-                  'jfif', 'tga']
+IMAGE_SUFFIXES = ['.jpg', '.jpeg', '.png', '.bmp', '.gif', '.webp', '.ppm', '.tiff', '.tif', '.jfif', '.tga']
 VIDEO_SUFFIXES = ['.mp4', '.avi', '.mov', '.wmv',
                   '.flv', '.mkv', '.webm', '.m4v', '.vid', '.ts']
 COMPRESSED_SUFFIXES = ['.zip', '.rar', '.7z', '.tar', '.gz', '.z']

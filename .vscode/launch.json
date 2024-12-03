@@ -10,9 +10,6 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "__args": [
-                "${command:pickArgs}"
-            ]
         },
         {
             "name": "Python Current File",

@@ -108,12 +108,16 @@ class RatingCache:
                     from_to.append((from_path, to_path))
         # pprint(from_to)
         for from_path, to_path in from_to:
-            if not to_path.parent.exists():
-                os.makedirs(to_path.parent)
-            if to_path.parent.name == rating_to_subfolder(Rating.Face, filetype):
-                shutil.copy(from_path, to_path.parent)
-            else:
-                shutil.move(from_path, to_path.parent)
+            try:
+                if not to_path.parent.exists():
+                    os.makedirs(to_path.parent)
+                if to_path.parent.name == rating_to_subfolder(Rating.Face, filetype):
+                    shutil.copy(from_path, to_path.parent)
+                else:
+                    shutil.move(from_path, to_path.parent)
+            except Exception as e:
+                print(f'Error moving {from_path} to {to_path}')
+                print_colorized_exception(e)
         self.clear_cache()
 
 
@@ -299,15 +303,15 @@ def move_rated_to_dir_sequence():
 
 
 def XN_RATE_CLIPBOARD_SET(rating: str):
-    asyncio.create_task(try_xn_rate_clipboard_image_set(rating))
+    asyncio.create_task(try_xn_rate_clipboard_image_set(rating), name='XN_RATE_CLIPBOARD_SET')
 
 
 def XN_RATE_CLIPBOARD_PATH(rating: str):
-    asyncio.create_task(try_xn_rate_clipboard_path(rating))
+    asyncio.create_task(try_xn_rate_clipboard_path(rating), name='XN_RATE_CLIPBOARD_PATH')
 
 
 def XN_SORT_BY_TYPE():
-    asyncio.create_task(try_xn_sort_by_type())
+    asyncio.create_task(try_xn_sort_by_type(), name='XN_SORT_BY_TYPE')
 
 
 def XN_MOVE_RATED_TO_DIR():

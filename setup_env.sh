@@ -24,6 +24,6 @@ fi
 source .venv/bin/activate
 
 # Install or update the requirements
-pip install -r requirements.txt
+pip install --upgrade -r requirements.txt
 
 printf "Virtual environment setup complete. To activate it, run 'source .venv/bin/activate'.\n"

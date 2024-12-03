@@ -191,13 +191,14 @@ async def main():
         PIPE_WATCHER_SLEEP_TIME)
 
     read_gamer_commands_task = asyncio.create_task(
-        gamer_commands_pipe_watcher())
+        gamer_commands_pipe_watcher(), name='gamer_commands_pipe_watcher')
+
 
     read_window_manager_task = asyncio.create_task(
-        window_manager_pipe_watcher())
+        window_manager_pipe_watcher(), name='window_manager_pipe_watcher')
 
     color_changer_task = asyncio.create_task(
-        window_manager_ricer.color_changer())
+        window_manager_ricer.color_changer(), name='color_changer')
 
     await asyncio.gather(read_window_manager_task, read_gamer_commands_task, color_changer_task)
 

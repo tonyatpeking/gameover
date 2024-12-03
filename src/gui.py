@@ -1,12 +1,22 @@
-import gradio as gr
+"""
+A simple example to demonstrate events.
+"""
 
-def greet(name, intensity):
-    return "Hello, " + name + "S" * int(intensity)
+from wgpu.gui.auto import WgpuCanvas, run, call_later
 
-demo = gr.Interface(
-    fn=greet,
-    inputs=["text", "slider"],
-    outputs=["text"],
-)
 
-demo.launch(share=True)
+class MyCanvas(WgpuCanvas):
+    def handle_event(self, event):
+        if event["event_type"] != "pointer_move":
+            print(event)
+
+
+if __name__ == "__main__":
+    canvas = MyCanvas(size=(640, 480), title="wgpu events")
+
+    def send_message(message):
+        print(f"Message: {message}")
+
+    call_later(2, send_message, "hello")
+
+    run()
