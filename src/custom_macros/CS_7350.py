@@ -64,22 +64,29 @@ def get_class_level_from_name_section(name_section: str):
         # treat student with no class section as CS7350
         return ClassLevel.CS7350
     
-def calculate_score_v2(correctness_list: list[int], show_your_work_detail_level: int):
+def calculate_score_v2(correctness_list: list[int], show_your_work_detail_level: int, max_score: int = 20):
+
+    if max_score == 0:
+        return 0, 0, 0
+
+    max_score_default = 20
     SHOW_YOUR_WORK_BONUS = {
     # detail_level: (scaled_bonus, flat_bonus)
     3: (7, 1),  # very_detailed
     2: (5, 0),  # detailed
     1: (3, 0),  # somewhat_detailed
-    0: (0, -5)  # did_not_show_work
+    0: (0, 0)  # did_not_show_work
 }
     MAX_CORRECTNESS_SCORE = 4
-    points = sum(correctness_list) / len(correctness_list) / MAX_CORRECTNESS_SCORE * 20
+    points = sum(correctness_list) / len(correctness_list) / MAX_CORRECTNESS_SCORE * max_score
     base = round(points)
     points = max(points, 0)
     scaled_bonus, flat_bonus = SHOW_YOUR_WORK_BONUS[show_your_work_detail_level]
-    points = points + (1 - (points / 20)) * scaled_bonus
+    scaled_bonus = scaled_bonus / max_score_default * max_score
+    flat_bonus = flat_bonus / max_score_default * max_score
+    points = points + (1 - (points / max_score)) * scaled_bonus
     points = points + flat_bonus
-    points = min(max(points, 0), 20)
+    points = min(max(points, 0), max_score)
     points = round(points)
     bonus = points - base
     return points, base, bonus
@@ -134,7 +141,7 @@ def test_calculate_score():
 
 
 
-def calculate_points_for_text_v2(text: str) -> str:
+def calculate_points_for_text_v2(text: str, question_points) -> str:
     import re
 
     summary_start_text = "## <mark>START OF SUMMARY"
@@ -144,11 +151,17 @@ def calculate_points_for_text_v2(text: str) -> str:
     correctness_re = r"Correctness: (\d)"
     points_text = r"- Q\d+ Points ="
 
-
+    
 
     score_dict = {}
 
     lines = text.split('\n')
+
+    if '5350' in lines[0]:
+        student_level = ClassLevel.CS5350
+    else:
+        student_level = ClassLevel.CS7350
+
     question_number = -1
     correctness_list = []
     show_your_work_detail_level = -1
@@ -181,7 +194,8 @@ def calculate_points_for_text_v2(text: str) -> str:
         if match_points:
             points_line_idx = current_line_index
         if line.startswith(summary_end_text):
-            score, base, bonus = calculate_score_v2(correctness_list, show_your_work_detail_level)
+            max_score = question_points[student_level][question_number - 1]
+            score, base, bonus = calculate_score_v2(correctness_list, show_your_work_detail_level, max_score)
             lines[points_line_idx] = f'- Q{question_number} Points = {score} = base: {base} + bonus: {bonus}'
             score_dict[f'Q{question_number}'] = score
         current_line_index += 1
@@ -620,7 +634,7 @@ class CS7350_Grader:
                 continue
             with open(filepath, 'r') as file:
                 content = file.read()
-            content = calculate_points_for_text_v2(content)
+            content = calculate_points_for_text_v2(content, self.question_points)
             graded_human_filepath = self.graded_human_dir / filename
             with open(graded_human_filepath, 'w') as file:
                 file.write(content)
@@ -905,8 +919,8 @@ a3_rubric_section_definitions = [
                       start_re=re_reference_answer_header(6)),
 ]
 
-a3_question_points = {'5350': [20, 0, 20, 20, 20, 20],
-                      '7350': [10, 10, 20, 20, 20, 20]}
+a3_question_points = {ClassLevel.CS5350: [20, 0, 20, 20, 20, 20],
+                      ClassLevel.CS7350: [10, 10, 20, 20, 20, 20]}
 
 
 
@@ -921,3 +935,81 @@ cs7350a3 = CS7350_Grader(assignment_number=3,
                           graded_human_dir='/home/tony/gdrive/SMU Classes/TA 2024 Fall/Algorithm Engineering CS5350 CS7350/Assignment-3/graded_human',
                           question_points=a3_question_points)
 # endregion A3
+
+
+# region A4
+a4_student_section_definitions = [
+    SectionDefinition(name='Header', 
+                      start_re=r'\A'),
+    SectionDefinition(name='Q1',
+                      start_re=re_question_header(1)),
+    SectionDefinition(name='A1', 
+                      start_re=re_student_answer_header(1)),
+    SectionDefinition(name='Q2',
+                      start_re=re_question_header(2)),
+    SectionDefinition(name='A2', 
+                      start_re=re_student_answer_header(2)),
+    SectionDefinition(name='Q3',
+                      start_re=re_question_header(3)),
+    SectionDefinition(name='A3', 
+                      start_re=re_student_answer_header(3)),
+    SectionDefinition(name='Q4',
+                      start_re=re_question_header(4)),
+    SectionDefinition(name='A4', 
+                      start_re=re_student_answer_header(4)),
+    SectionDefinition(name='Q5',
+                      start_re=re_question_header(5)),
+    SectionDefinition(name='A5',
+                      start_re=re_student_answer_header(5)),
+    SectionDefinition(name='Q6',
+                      start_re=re_question_header(6)),
+    SectionDefinition(name='A6',
+                      start_re=re_student_answer_header(6)),
+]
+
+a4_rubric_section_definitions = [
+    SectionDefinition(name='Header', 
+                      start_re=r'\A'),
+    SectionDefinition(name='Q1',
+                      start_re=re_question_header(1)),
+    SectionDefinition(name='R1', 
+                      start_re=re_reference_answer_header(1)),
+    SectionDefinition(name='Q2',
+                      start_re=re_question_header(2)),
+    SectionDefinition(name='R2', 
+                      start_re=re_reference_answer_header(2)),
+    SectionDefinition(name='Q3',
+                      start_re=re_question_header(3)),
+    SectionDefinition(name='R3', 
+                      start_re=re_reference_answer_header(3)),
+    SectionDefinition(name='Q4',
+                      start_re=re_question_header(4)),
+    SectionDefinition(name='R4', 
+                      start_re=re_reference_answer_header(4)),
+    SectionDefinition(name='Q5',
+                      start_re=re_question_header(5)),
+    SectionDefinition(name='R5',
+                      start_re=re_reference_answer_header(5)),
+    SectionDefinition(name='Q6',
+                      start_re=re_question_header(6)),
+    SectionDefinition(name='R6',
+                      start_re=re_reference_answer_header(6)),
+]
+
+a4_question_points = {ClassLevel.CS5350: [20, 20, 20, 20, 20, 0],
+                      ClassLevel.CS7350: [20, 20, 20, 10, 20, 10]}
+
+
+
+cs7350a4 = CS7350_Grader(assignment_number=4,
+                          num_questions=6,
+                          student_section_definitions=a4_student_section_definitions, 
+                          rubric_section_definitions=a4_rubric_section_definitions, 
+                          rubric_file='/home/tony/gdrive/SMU Classes/TA 2024 Fall/Algorithm Engineering CS5350 CS7350/Assignment-4/Assignment-4-rubric.md', 
+                          prompt_file='/home/tony/gdrive/SMU Classes/TA 2024 Fall/Algorithm Engineering CS5350 CS7350/Assignment-4/Assignment-4-prompt.md',
+                          grading_dir='/home/tony/gdrive/SMU Classes/TA 2024 Fall/Algorithm Engineering CS5350 CS7350/Assignment-4/grading',
+                          graded_llm_dir='/home/tony/gdrive/SMU Classes/TA 2024 Fall/Algorithm Engineering CS5350 CS7350/Assignment-4/graded_llm',
+                          graded_human_dir='/home/tony/gdrive/SMU Classes/TA 2024 Fall/Algorithm Engineering CS5350 CS7350/Assignment-4/graded_human',
+                          question_points=a4_question_points)
+# endregion A4
+
