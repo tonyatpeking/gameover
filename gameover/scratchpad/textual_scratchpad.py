@@ -9,36 +9,15 @@ class ButtonsApp(App[str]):
     def compose(self) -> ComposeResult:
         yield Horizontal(
             VerticalScroll(
-                Static("Standard Buttons", classes="header"),
-                Button("Default"),
-                Button("Primary!", variant="primary"),
-                Button.success("Success!"),
-                Button.warning("Warning!"),
-                Button.error("Error!"),
+                Static("Fla", classes="header"),
+                Button("Def", flat=True, compact=True),
+                Button("Pri", variant="primary", flat=True, compact=True),
             ),
             VerticalScroll(
-                Static("Disabled Buttons", classes="header"),
-                Button("Default", disabled=True),
-                Button("Primary!", variant="primary", disabled=True),
-                Button.success("Success!", disabled=True),
-                Button.warning("Warning!", disabled=True),
-                Button.error("Error!", disabled=True),
-            ),
-            VerticalScroll(
-                Static("Flat Buttons", classes="header"),
-                Button("Default", flat=True),
-                Button("Primary!", variant="primary", flat=True),
-                Button.success("Success!", flat=True),
-                Button.warning("Warning!", flat=True),
-                Button.error("Error!", flat=True),
-            ),
-            VerticalScroll(
-                Static("Disabled Flat Buttons", classes="header"),
-                Button("Default", disabled=True, flat=True),
-                Button("Primary!", variant="primary", disabled=True, flat=True),
-                Button.success("Success!", disabled=True, flat=True),
-                Button.warning("Warning!", disabled=True, flat=True),
-                Button.error("Error!", disabled=True, flat=True),
+                Static("Dis", classes="header"),
+                Button("Def", disabled=True, flat=True, compact=True),
+                Button("Pri", variant="primary", disabled=True, flat=True, compact=True),
+
             ),
         )
 

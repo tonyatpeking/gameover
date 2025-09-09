@@ -1,12 +1,15 @@
 Button {
-    margin: 1 2;
+    margin: 0 0;
+    border: none;
+    padding: 0 0;
 }
 
+
 Horizontal > VerticalScroll {
-    width: 24;
+    width: 12;
 }
 
 .header {
-    margin: 1 0 0 2;
+    margin: 0 0 0 0;
     text-style: bold;
 }
