@@ -301,6 +301,11 @@ def BRIGHTNESS_DOWN():
     _current_brightness -= _brightness_step
     BRIGHTNESS(_current_brightness)
 
+
+def SWITCH_WINDOW():
+    sh('rofi -show window')
+
+
 # endregion
 
 

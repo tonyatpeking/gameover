@@ -96,9 +96,11 @@ def calculate_score_v2(correctness_list: list[int], show_your_work_detail_level:
     base = round(points)
     points = max(points, 0)
     scaled_bonus, flat_bonus = SHOW_YOUR_WORK_BONUS[show_your_work_detail_level]
-    points = points + (1 - (points / 20)) * scaled_bonus
+    scaled_bonus = scaled_bonus / max_score_default * max_score
+    flat_bonus = flat_bonus / max_score_default * max_score
+    points = points + (1 - (points / max_score)) * scaled_bonus
     points = points + flat_bonus
-    points = min(max(points, 0), 20)
+    points = min(max(points, 0), max_score)
     points = round(points)
     bonus = points - base
     return points, base, bonus
@@ -152,6 +154,8 @@ def test_calculate_score():
           major_mistakes=1, show_your_work_detail_level=3))
 
 
+
+
 def calculate_points_for_text_v2(text: str) -> str:
     import re
 
@@ -165,6 +169,12 @@ def calculate_points_for_text_v2(text: str) -> str:
     score_dict = {}
 
     lines = text.split('\n')
+
+    if '5350' in lines[0]:
+        student_level = ClassLevel.CS5350
+    else:
+        student_level = ClassLevel.CS7350
+
     question_number = -1
     correctness_list = []
     show_your_work_detail_level = -1
@@ -639,7 +649,7 @@ class CS7350_Grader:
                 continue
             with open(filepath, 'r') as file:
                 content = file.read()
-            content = calculate_points_for_text_v2(content)
+            content = calculate_points_for_text_v2(content, self.question_points)
             graded_human_filepath = self.graded_human_dir / filename
             with open(graded_human_filepath, 'w') as file:
                 file.write(content)

@@ -1,5 +1,37 @@
 # gameover
 
+<pre>
+<button>foo</button> <button>foo</button>
+<button>foo</button> <button>foo</button>
+</pre> 
+
+## Details
+
+<details>
+
+<summary>summary goes here</summary>
+
+### You can add a header
+
+You can add text within a collapsed section.
+
+You can add an image or a code block, too.
+
+```ruby
+   puts "Hello World"
+```
+
+<details>
+<summary>Can I nest details?</summary>
+
+### Lets see
+
+</details>
+
+</details>
+
+## Gameover
+
 gameover (Gamer Overlay) is a Python project that provides an overlay for desktop environments inspired by game keyboard shortcuts and overlays.
 
 ## Installation
@@ -24,6 +56,7 @@ If you are here you are probably a power user and hate GUIs. Hear me out. The an
 
 #### Layout
 
+- [Installation](#installation)
 - Tabs with layers like oryx https://configure.zsa.io/ergodox-ez/layouts/Yn9EZ/B556v/0
 - Layer activation criteria
     - Window context
