@@ -10,12 +10,12 @@ cs_7350_a1_q2 = CS_7350.cs_7350_a1_q2
 cs7350a2 = CS_7350.cs7350a2
 cs7350a3 = CS_7350.cs7350a3
 
+
 def try_async_macro(macro):
     try:
         asyncio.create_task(macro())
     except Exception as e:
         print_colorized_exception(e)
-
 
 
 def MACRO_1():
@@ -39,8 +39,14 @@ def MACRO_4():
     try_async_macro(cs7350a3.calculate_points)
 
 
-
 def MACRO_5():
     rich.print('[bold on #004477]      MACRO_5      [/]')
     try_async_macro(cs7350a3.calculate_points)
 
+
+def MACRO_TEST():
+    rich.print('[bold on #004477]      MACRO_TEST      [/]')
+
+
+if __name__ == '__main__':
+    MACRO_TEST()

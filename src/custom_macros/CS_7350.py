@@ -2,7 +2,7 @@ from __future__ import annotations
 import rich
 import pyperclip
 from colors import print_colorized_exception
-from keymapperctl import input_raw, output_raw
+
 import asyncio
 from openai import AsyncOpenAI
 from pathlib import Path
@@ -11,6 +11,15 @@ import re
 import pyperclip
 import os
 
+try:
+    from keymapperctl import input_raw, output_raw
+except ImportError:
+    print('WARNING: keymapperctl not found, cannot use input_raw and output_raw')
+
+    def input_raw(x): return print(
+        'ERROR: keymapperctl not imported, input_raw not available')
+    def output_raw(x): return print(
+        'ERROR: keymapperctl not imported, output_raw not available')
 
 # Legend
 
@@ -22,9 +31,13 @@ import os
 
 
 # region Global constants
-MODEL_TO_USE = 'o1-mini' # o1-preview o1-mini gpt-4o gpt-4o-mini
+MODEL_TO_USE = 'o1-mini'  # o1-preview o1-mini gpt-4o gpt-4o-mini
 
 OPENAI_API_KEY_FILE = '/home/tony/openai_api_key.txt'
+OPENAI_API_KEY_FILE = r'C:\Tony\Work\keys\openai_api_key.txt'
+
+PROJECT_ROOT = r'/home/tony/gdrive/SMU Classes/TA 2024 Fall/Algorithm Engineering CS5350 CS7350/'
+PROJECT_ROOT = r'G:\My Drive\SMU Classes\TA 2024 Fall\Algorithm Engineering CS5350 CS7350\\'
 
 # endregion Global constants
 
@@ -40,19 +53,23 @@ client = AsyncOpenAI(
     api_key=OPENAI_API_KEY
 )
 
+
 class GradingStatus(Enum):
     TO_BE_GRADED = '#004477'
     LLM_GRADING = '#AAAA33'
     LLM_GRADING_FAILED = '#ff4477'
     LLM_GRADED = '#00CC00'
 
+
 def select_all_copy():
     input_raw('Control{A} 20ms Control{C}')
+
 
 class ClassLevel(Enum):
     CS7350 = 'CS7350'
     CS5350 = 'CS5350'
     UNKNOWN = 'UNKNOWN'
+
 
 def get_class_level_from_name_section(name_section: str):
     # in the case of a team, if at least one student is CS7350 then the team is CS7350
@@ -63,17 +80,19 @@ def get_class_level_from_name_section(name_section: str):
     else:
         # treat student with no class section as CS7350
         return ClassLevel.CS7350
-    
+
+
 def calculate_score_v2(correctness_list: list[int], show_your_work_detail_level: int):
     SHOW_YOUR_WORK_BONUS = {
-    # detail_level: (scaled_bonus, flat_bonus)
-    3: (7, 1),  # very_detailed
-    2: (5, 0),  # detailed
-    1: (3, 0),  # somewhat_detailed
-    0: (0, -5)  # did_not_show_work
-}
+        # detail_level: (scaled_bonus, flat_bonus)
+        3: (7, 1),  # very_detailed
+        2: (5, 0),  # detailed
+        1: (3, 0),  # somewhat_detailed
+        0: (0, -5)  # did_not_show_work
+    }
     MAX_CORRECTNESS_SCORE = 4
-    points = sum(correctness_list) / len(correctness_list) / MAX_CORRECTNESS_SCORE * 20
+    points = sum(correctness_list) / len(correctness_list) / \
+        MAX_CORRECTNESS_SCORE * 20
     base = round(points)
     points = max(points, 0)
     scaled_bonus, flat_bonus = SHOW_YOUR_WORK_BONUS[show_your_work_detail_level]
@@ -83,6 +102,7 @@ def calculate_score_v2(correctness_list: list[int], show_your_work_detail_level:
     points = round(points)
     bonus = points - base
     return points, base, bonus
+
 
 def calculate_score(correct_answers: int, total_subproblems: int, minor_mistakes: int, major_mistakes: int, show_your_work_detail_level: int):
     MINOR_MISTAKE_MULTIPLIER = 1
@@ -132,8 +152,6 @@ def test_calculate_score():
           major_mistakes=1, show_your_work_detail_level=3))
 
 
-
-
 def calculate_points_for_text_v2(text: str) -> str:
     import re
 
@@ -143,8 +161,6 @@ def calculate_points_for_text_v2(text: str) -> str:
     show_your_work_re = r"show_your_work_detail_level: (\d+)"
     correctness_re = r"Correctness: (\d)"
     points_text = r"- Q\d+ Points ="
-
-
 
     score_dict = {}
 
@@ -159,7 +175,8 @@ def calculate_points_for_text_v2(text: str) -> str:
         if line.startswith(summary_start_text):
             match = re.search(summary_start_re, line)
             if not match:
-                rich.print('[#f80]Start of summary line match failed: {line}[/]')
+                rich.print(
+                    '[#f80]Start of summary line match failed: {line}[/]')
             else:
                 question_number = match.group(1)
                 question_number = int(question_number)
@@ -181,7 +198,8 @@ def calculate_points_for_text_v2(text: str) -> str:
         if match_points:
             points_line_idx = current_line_index
         if line.startswith(summary_end_text):
-            score, base, bonus = calculate_score_v2(correctness_list, show_your_work_detail_level)
+            score, base, bonus = calculate_score_v2(
+                correctness_list, show_your_work_detail_level)
             lines[points_line_idx] = f'- Q{question_number} Points = {score} = base: {base} + bonus: {bonus}'
             score_dict[f'Q{question_number}'] = score
         current_line_index += 1
@@ -192,7 +210,7 @@ def calculate_points_for_text_v2(text: str) -> str:
         question_and_score_list.append(f'{question_number}: {score}')
     question_and_score = ' + '.join(question_and_score_list)
     total_score_line = f'<mark>Total Score = {total_score} = {question_and_score}</mark>\n'
-    
+
     lines.insert(0, total_score_line)
     return '\n'.join(lines)
 
@@ -283,8 +301,7 @@ def calculate_points_for_text(text: str):
         scores_builder.append(question_number + ': ' + score)
         total_score += int(score)
 
-    scores_builder = f'<mark>Total Score = {str(total_score)} = {
-        " + ".join(scores_builder)}</mark>'
+    scores_builder = f'< mark > Total Score = {str(total_score)} = {" + ".join(scores_builder)} < /mark >'
 
     return scores_builder + '\n' + text
 
@@ -292,11 +309,14 @@ def calculate_points_for_text(text: str):
 def re_student_answer_header(question_number: int):
     return f'## Question {question_number}.{{0,6}}Student Answer'
 
+
 def re_question_header(question_number: int):
     return f'## Question {question_number}'
 
+
 def re_reference_answer_header(question_number: int):
     return f'## Question {question_number}.{{0,6}}Reference Answer'
+
 
 class SectionDefinition:
     def __init__(self, name: str, start_re: str):
@@ -304,7 +324,7 @@ class SectionDefinition:
         self.start_re = start_re
         self.end_re = ''
         self.full_re = ''
-    
+
     @staticmethod
     def initialize_section_definitions(section_definitions: list[SectionDefinition]) -> list[SectionDefinition]:
         for i in range(len(section_definitions) - 1):
@@ -319,11 +339,12 @@ class SectionDefinition:
 
 
 def parse_sections(content: str, section_definitions: list[SectionDefinition]) -> dict[str, str]:
-    section_definitions = SectionDefinition.initialize_section_definitions(section_definitions)
+    section_definitions = SectionDefinition.initialize_section_definitions(
+        section_definitions)
     sections = {}
     for section_definition in section_definitions:
         # print out the full_re for debugging, copy this to regex101.com for debugging
-        #print(section_definition.full_re)
+        # print(section_definition.full_re)
         pattern = re.compile(section_definition.full_re)
         matches = pattern.finditer(content)
         matches = list(matches)
@@ -333,7 +354,8 @@ def parse_sections(content: str, section_definitions: list[SectionDefinition]) -
             match = matches[0]
             sections[section_definition.name] = match.group(1)
     return sections
-    
+
+
 async def ask_llm(prompt: str, model: str = 'gpt-4o-mini'):
     rich.print('[#ffff00]  [/]    ask_llm      [#ffff00]  [/]')
     completion = await client.chat.completions.create(
@@ -346,6 +368,7 @@ async def ask_llm(prompt: str, model: str = 'gpt-4o-mini'):
         ]
     )
     return completion.choices[0].message.content
+
 
 class Entry:
     '''
@@ -365,23 +388,20 @@ class Entry:
         self.num_questions = num_questions
         self.grader = grader
 
-        self.class_level = get_class_level_from_name_section(student_sections['Header'])
+        self.class_level = get_class_level_from_name_section(
+            student_sections['Header'])
         self.prompts = self.prepare_prompts()
         self.graded_sections = {}
-        
+
         self.llm_graded_document = ''
 
-
-
-        self.grading_statuses : dict[str, GradingStatus] = {}
+        self.grading_statuses: dict[str, GradingStatus] = {}
         for i in range(1, self.num_questions + 1):
             self.grading_statuses[f'G{i}'] = GradingStatus.TO_BE_GRADED
 
-        self.responses = {} # key is Gi
+        self.responses = {}  # key is Gi
 
         self.print_status()
-
-
 
     def prepare_prompts(self):
         prompts = {}
@@ -396,10 +416,9 @@ class Entry:
             prompt_content += '\n'
             prompt_content += self.rubric_sections[f'R{i}']
             prompts[prompt_name] = prompt_content
-            #print(prompt_content)
-            #print('>>>>>>>>>>>')
+            # print(prompt_content)
+            # print('>>>>>>>>>>>')
         return prompts
-
 
     def verify_grading_response(self, response: str, question_number: int):
         '''
@@ -417,15 +436,14 @@ class Entry:
             return False
         return True
 
-
     async def grade_with_llm(self, question_number: int):
         prompt_name = f'P{question_number}'
         grade_key = f'G{question_number}'
         async with Entry.lock:
             if self.grading_statuses[grade_key] != GradingStatus.TO_BE_GRADED:
                 rich.print(f'[bold on #ff4477]  {self.filename}  [/]')
-                rich.print(f'[bold on #ff4477]  question {
-                           question_number} is not in TO_BE_GRADED state [/]')
+                rich.print(
+                    f'[bold on  # ff4477]  question {question_number} is not in TO_BE_GRADED state[/]')
                 return
             self.grading_statuses[grade_key] = GradingStatus.LLM_GRADING
 
@@ -453,7 +471,7 @@ class Entry:
             if self.grading_statuses[grade_key] != GradingStatus.LLM_GRADED:
                 return False
         return True
-    
+
     def construct_llm_graded_document(self):
         document = ''
         document += '<mark>Student Level: ' + self.class_level.value + ' </mark>\n\n'
@@ -467,12 +485,10 @@ class Entry:
             document += '\n\n'
         return document
 
-
     def save_to_graded_llm_folder(self, document: str):
         graded_llm_filepath = self.grader.graded_llm_dir / self.filename
         with open(graded_llm_filepath, 'w') as file:
             file.write(document)
-        
 
     def mark_as_human_graded(self):
         for question_number in A1_QUESTIONS_TO_GRADE.keys():
@@ -499,7 +515,7 @@ class Entry:
     def print_status(self):
         filename = self.filename
         level = self.class_level.value
-        
+
         status_string = f'[bold on #004477]{filename[:20]} {level} [/]'
         for i in range(1, self.num_questions + 1):
             key = f'G{i}'
@@ -512,17 +528,17 @@ class CS7350_Grader:
     All should be done in the context of vscode
     '''
 
-    def __init__(self, 
+    def __init__(self,
                  assignment_number: int,
                  num_questions: int,
-                 student_section_definitions: list[SectionDefinition], 
-                 rubric_section_definitions: list[SectionDefinition], 
-                 rubric_file: str, 
+                 student_section_definitions: list[SectionDefinition],
+                 rubric_section_definitions: list[SectionDefinition],
+                 rubric_file: str,
                  prompt_file: str,
                  grading_dir: str,
                  graded_llm_dir: str,
-                 graded_human_dir: str, 
-                 question_points = None):
+                 graded_human_dir: str,
+                 question_points=None):
         self.entries: dict[str, Entry] = {}
         self.assignment_number = assignment_number
         self.num_questions = num_questions
@@ -560,35 +576,39 @@ class CS7350_Grader:
     async def parse_rubric(self):
         with open(self.rubric_file, 'r') as file:
             rubric_content = file.read()
-    
-        self.rubric_sections = parse_sections(rubric_content, self.rubric_section_definitions)
-        self.print_sections_summary('rubric', rubric_content, self.rubric_sections, color_default='#114422')
 
-    
+        self.rubric_sections = parse_sections(
+            rubric_content, self.rubric_section_definitions)
+        self.print_sections_summary(
+            'rubric', rubric_content, self.rubric_sections, color_default='#114422')
+
     async def parse_student_assignments(self):
         '''parse all the student assignments in the grading directory'''
         filenames = os.listdir(self.grading_dir)
         filenames.sort()
-        row_colors  = ['#004477', '#002255']
+        row_colors = ['#004477', '#002255']
         student_idx = 0
         for filename in filenames:
             if filename.endswith('.md'):
                 with open(os.path.join(self.grading_dir, filename), 'r') as file:
                     content = file.read()
-                student_sections = parse_sections(content, self.student_section_definitions)
-                self.print_sections_summary(filename, content, student_sections, row_colors[student_idx % len(row_colors)])
+                student_sections = parse_sections(
+                    content, self.student_section_definitions)
+                self.print_sections_summary(
+                    filename, content, student_sections, row_colors[student_idx % len(row_colors)])
                 student_idx += 1
                 self.student_sections[filename] = student_sections
-    
+
     async def make_entries(self):
         for filename, student_sections in self.student_sections.items():
-            entry = Entry(filename, student_sections, self.rubric_sections, self.prompt_content, self.num_questions, self)
+            entry = Entry(filename, student_sections, self.rubric_sections,
+                          self.prompt_content, self.num_questions, self)
             self.entries[filename] = entry
-
 
     async def print_assignment_number(self):
         '''print the assignment number'''
-        rich.print(f'[bold on #004477]  Assignment {self.assignment_number}  [/]')
+        rich.print(
+            f'[bold on #004477]  Assignment {self.assignment_number}  [/]')
 
     async def get_vscode_filename(self):
         '''get the filename of the current file in vscode'''
@@ -604,10 +624,9 @@ class CS7350_Grader:
         await asyncio.sleep(0.05)
         content = pyperclip.paste()
         return content
-    
+
     async def parse_files(self):
         '''parse all the files in the current directory'''
-
 
     async def calculate_points(self):
         '''calculate the points for files in graded_llm folder and save to graded_human folder'''
@@ -667,13 +686,6 @@ class CS7350_Grader:
 
 
 # region A1
-
-
-
-
-
-
-
 
 
 async def cs_7350_a1_q2():
@@ -765,16 +777,7 @@ async def cs_7350_a1_q2():
     output_raw('Control{V}')
 
 
-
-
-
-
-#cs7350a1 = CS7350_Grader(1)
-
-
-
-
-
+# cs7350a1 = CS7350_Grader(1)
 
 
 # endregion A1
@@ -782,48 +785,48 @@ async def cs_7350_a1_q2():
 # region A2
 
 a2_student_section_definitions = [
-    SectionDefinition(name='Name', 
+    SectionDefinition(name='Name',
                       start_re=r'\A'),
     SectionDefinition(name='Inst',
                       start_re=r'## Instructions'),
     SectionDefinition(name='Q1',
                       start_re=re_question_header(1)),
-    SectionDefinition(name='A1', 
+    SectionDefinition(name='A1',
                       start_re=re_student_answer_header(1)),
     SectionDefinition(name='Q2',
                       start_re=re_question_header(2)),
-    SectionDefinition(name='A2', 
+    SectionDefinition(name='A2',
                       start_re=re_student_answer_header(2)),
     SectionDefinition(name='Q3',
                       start_re=re_question_header(3)),
-    SectionDefinition(name='A3', 
+    SectionDefinition(name='A3',
                       start_re=re_student_answer_header(3)),
     SectionDefinition(name='Q4',
                       start_re=re_question_header(4)),
-    SectionDefinition(name='A4', 
+    SectionDefinition(name='A4',
                       start_re=re_student_answer_header(4)),
     SectionDefinition(name='A5',
                       start_re=re_question_header(5)),
 ]
 
 a2_rubric_section_definitions = [
-    SectionDefinition(name='Header', 
+    SectionDefinition(name='Header',
                       start_re=r'\A'),
     SectionDefinition(name='Q1',
                       start_re=re_question_header(1)),
-    SectionDefinition(name='R1', 
+    SectionDefinition(name='R1',
                       start_re=re_reference_answer_header(1)),
     SectionDefinition(name='Q2',
                       start_re=re_question_header(2)),
-    SectionDefinition(name='R2', 
+    SectionDefinition(name='R2',
                       start_re=re_reference_answer_header(2)),
     SectionDefinition(name='Q3',
                       start_re=re_question_header(3)),
-    SectionDefinition(name='R3', 
+    SectionDefinition(name='R3',
                       start_re=re_reference_answer_header(3)),
     SectionDefinition(name='Q4',
                       start_re=re_question_header(4)),
-    SectionDefinition(name='R4', 
+    SectionDefinition(name='R4',
                       start_re=re_reference_answer_header(4)),
     SectionDefinition(name='Q5',
                       start_re=re_question_header(5)),
@@ -832,39 +835,38 @@ a2_rubric_section_definitions = [
 ]
 
 
-
 cs7350a2 = CS7350_Grader(assignment_number=2,
-                          num_questions=5,
-                          student_section_definitions=a2_student_section_definitions, 
-                          rubric_section_definitions=a2_rubric_section_definitions, 
-                          rubric_file='/home/tony/gdrive/SMU Classes/TA 2024 Fall/Algorithm Engineering CS5350 CS7350/Assignment-2/Assignment-2-rubric.md', 
-                          prompt_file='/home/tony/gdrive/SMU Classes/TA 2024 Fall/Algorithm Engineering CS5350 CS7350/Assignment-2/Assignment-2-prompt.md',
-                          grading_dir='/home/tony/gdrive/SMU Classes/TA 2024 Fall/Algorithm Engineering CS5350 CS7350/Assignment-2/regrade',
-                          graded_llm_dir='/home/tony/gdrive/SMU Classes/TA 2024 Fall/Algorithm Engineering CS5350 CS7350/Assignment-2/regraded_llm',
-                          graded_human_dir='/home/tony/gdrive/SMU Classes/TA 2024 Fall/Algorithm Engineering CS5350 CS7350/Assignment-2/regraded_human')
+                         num_questions=5,
+                         student_section_definitions=a2_student_section_definitions,
+                         rubric_section_definitions=a2_rubric_section_definitions,
+                         rubric_file=PROJECT_ROOT+'Assignment-2/Assignment-2-rubric.md',
+                         prompt_file=PROJECT_ROOT+'Assignment-2/Assignment-2-prompt.md',
+                         grading_dir=PROJECT_ROOT+'Assignment-2/regrade',
+                         graded_llm_dir=PROJECT_ROOT+'Assignment-2/regraded_llm',
+                         graded_human_dir=PROJECT_ROOT+'Assignment-2/regraded_human')
 
 
 # endregion A2
 
 # region A3
 a3_student_section_definitions = [
-    SectionDefinition(name='Header', 
+    SectionDefinition(name='Header',
                       start_re=r'\A'),
     SectionDefinition(name='Q1',
                       start_re=re_question_header(1)),
-    SectionDefinition(name='A1', 
+    SectionDefinition(name='A1',
                       start_re=re_student_answer_header(1)),
     SectionDefinition(name='Q2',
                       start_re=re_question_header(2)),
-    SectionDefinition(name='A2', 
+    SectionDefinition(name='A2',
                       start_re=re_student_answer_header(2)),
     SectionDefinition(name='Q3',
                       start_re=re_question_header(3)),
-    SectionDefinition(name='A3', 
+    SectionDefinition(name='A3',
                       start_re=re_student_answer_header(3)),
     SectionDefinition(name='Q4',
                       start_re=re_question_header(4)),
-    SectionDefinition(name='A4', 
+    SectionDefinition(name='A4',
                       start_re=re_student_answer_header(4)),
     SectionDefinition(name='Q5',
                       start_re=re_question_header(5)),
@@ -877,23 +879,23 @@ a3_student_section_definitions = [
 ]
 
 a3_rubric_section_definitions = [
-    SectionDefinition(name='Header', 
+    SectionDefinition(name='Header',
                       start_re=r'\A'),
     SectionDefinition(name='Q1',
                       start_re=re_question_header(1)),
-    SectionDefinition(name='R1', 
+    SectionDefinition(name='R1',
                       start_re=re_reference_answer_header(1)),
     SectionDefinition(name='Q2',
                       start_re=re_question_header(2)),
-    SectionDefinition(name='R2', 
+    SectionDefinition(name='R2',
                       start_re=re_reference_answer_header(2)),
     SectionDefinition(name='Q3',
                       start_re=re_question_header(3)),
-    SectionDefinition(name='R3', 
+    SectionDefinition(name='R3',
                       start_re=re_reference_answer_header(3)),
     SectionDefinition(name='Q4',
                       start_re=re_question_header(4)),
-    SectionDefinition(name='R4', 
+    SectionDefinition(name='R4',
                       start_re=re_reference_answer_header(4)),
     SectionDefinition(name='Q5',
                       start_re=re_question_header(5)),
@@ -909,15 +911,93 @@ a3_question_points = {'5350': [20, 0, 20, 20, 20, 20],
                       '7350': [10, 10, 20, 20, 20, 20]}
 
 
+cs7350a3 = CS7350_Grader(assignment_number=3,
+                         num_questions=6,
+                         student_section_definitions=a3_student_section_definitions,
+                         rubric_section_definitions=a3_rubric_section_definitions,
+                         rubric_file=PROJECT_ROOT+'Assignment-3/Assignment-3-rubric.md',
+                         prompt_file=PROJECT_ROOT+'Assignment-3/Assignment-3-prompt.md',
+                         grading_dir=PROJECT_ROOT+'Assignment-3/grading',
+                         graded_llm_dir=PROJECT_ROOT+'Assignment-3/graded_llm',
+                         graded_human_dir=PROJECT_ROOT+'Assignment-3/graded_human',
+                         question_points=a3_question_points)
+# endregion A3
+
+# region A4
+
+
+a3_student_section_definitions = [
+    SectionDefinition(name='Header',
+                      start_re=r'\A'),
+    SectionDefinition(name='Q1',
+                      start_re=re_question_header(1)),
+    SectionDefinition(name='A1',
+                      start_re=re_student_answer_header(1)),
+    SectionDefinition(name='Q2',
+                      start_re=re_question_header(2)),
+    SectionDefinition(name='A2',
+                      start_re=re_student_answer_header(2)),
+    SectionDefinition(name='Q3',
+                      start_re=re_question_header(3)),
+    SectionDefinition(name='A3',
+                      start_re=re_student_answer_header(3)),
+    SectionDefinition(name='Q4',
+                      start_re=re_question_header(4)),
+    SectionDefinition(name='A4',
+                      start_re=re_student_answer_header(4)),
+    SectionDefinition(name='Q5',
+                      start_re=re_question_header(5)),
+    SectionDefinition(name='A5',
+                      start_re=re_student_answer_header(5)),
+    SectionDefinition(name='Q6',
+                      start_re=re_question_header(6)),
+    SectionDefinition(name='A6',
+                      start_re=re_student_answer_header(6)),
+]
+
+a3_rubric_section_definitions = [
+    SectionDefinition(name='Header',
+                      start_re=r'\A'),
+    SectionDefinition(name='Q1',
+                      start_re=re_question_header(1)),
+    SectionDefinition(name='R1',
+                      start_re=re_reference_answer_header(1)),
+    SectionDefinition(name='Q2',
+                      start_re=re_question_header(2)),
+    SectionDefinition(name='R2',
+                      start_re=re_reference_answer_header(2)),
+    SectionDefinition(name='Q3',
+                      start_re=re_question_header(3)),
+    SectionDefinition(name='R3',
+                      start_re=re_reference_answer_header(3)),
+    SectionDefinition(name='Q4',
+                      start_re=re_question_header(4)),
+    SectionDefinition(name='R4',
+                      start_re=re_reference_answer_header(4)),
+    SectionDefinition(name='Q5',
+                      start_re=re_question_header(5)),
+    SectionDefinition(name='R5',
+                      start_re=re_reference_answer_header(5)),
+    SectionDefinition(name='Q6',
+                      start_re=re_question_header(6)),
+    SectionDefinition(name='R6',
+                      start_re=re_reference_answer_header(6)),
+]
+
+a3_question_points = {'5350': [20, 0, 20, 20, 20, 20],
+                      '7350': [10, 10, 20, 20, 20, 20]}
+
 
 cs7350a3 = CS7350_Grader(assignment_number=3,
-                          num_questions=6,
-                          student_section_definitions=a3_student_section_definitions, 
-                          rubric_section_definitions=a3_rubric_section_definitions, 
-                          rubric_file='/home/tony/gdrive/SMU Classes/TA 2024 Fall/Algorithm Engineering CS5350 CS7350/Assignment-3/Assignment-3-rubric.md', 
-                          prompt_file='/home/tony/gdrive/SMU Classes/TA 2024 Fall/Algorithm Engineering CS5350 CS7350/Assignment-3/Assignment-3-prompt.md',
-                          grading_dir='/home/tony/gdrive/SMU Classes/TA 2024 Fall/Algorithm Engineering CS5350 CS7350/Assignment-3/grading',
-                          graded_llm_dir='/home/tony/gdrive/SMU Classes/TA 2024 Fall/Algorithm Engineering CS5350 CS7350/Assignment-3/graded_llm',
-                          graded_human_dir='/home/tony/gdrive/SMU Classes/TA 2024 Fall/Algorithm Engineering CS5350 CS7350/Assignment-3/graded_human',
-                          question_points=a3_question_points)
-# endregion A3
+                         num_questions=6,
+                         student_section_definitions=a3_student_section_definitions,
+                         rubric_section_definitions=a3_rubric_section_definitions,
+                         rubric_file=PROJECT_ROOT+'Assignment-3/Assignment-3-rubric.md',
+                         prompt_file=PROJECT_ROOT+'Assignment-3/Assignment-3-prompt.md',
+                         grading_dir=PROJECT_ROOT+'Assignment-3/grading',
+                         graded_llm_dir=PROJECT_ROOT+'Assignment-3/graded_llm',
+                         graded_human_dir=PROJECT_ROOT+'Assignment-3/graded_human',
+                         question_points=a3_question_points)
+
+
+# endregion A4
