@@ -1,0 +1,15 @@
+Button {
+    margin: 0 0;
+    border: none;
+    padding: 0 0;
+}
+
+
+Horizontal > VerticalScroll {
+    width: 12;
+}
+
+.header {
+    margin: 0 0 0 0;
+    text-style: bold;
+}
