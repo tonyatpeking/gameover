@@ -1,51 +1,19 @@
 from textual.app import App, ComposeResult
-from textual.containers import Horizontal, VerticalScroll
-from textual.widgets import Button, Static
+from textual.widgets import Static
 
 
-class ButtonsApp(App[str]):
-    CSS_PATH = "button.tcss"
+class GridLayoutExample(App):
+    CSS_PATH = "styles.tcss"
 
     def compose(self) -> ComposeResult:
-        yield Horizontal(
-            VerticalScroll(
-                Static("Standard Buttons", classes="header"),
-                Button("Default"),
-                Button("Primary!", variant="primary"),
-                Button.success("Success!"),
-                Button.warning("Warning!"),
-                Button.error("Error!"),
-            ),
-            VerticalScroll(
-                Static("Disabled Buttons", classes="header"),
-                Button("Default", disabled=True),
-                Button("Primary!", variant="primary", disabled=True),
-                Button.success("Success!", disabled=True),
-                Button.warning("Warning!", disabled=True),
-                Button.error("Error!", disabled=True),
-            ),
-            VerticalScroll(
-                Static("Flat Buttons", classes="header"),
-                Button("Default", flat=True),
-                Button("Primary!", variant="primary", flat=True),
-                Button.success("Success!", flat=True),
-                Button.warning("Warning!", flat=True),
-                Button.error("Error!", flat=True),
-            ),
-            VerticalScroll(
-                Static("Disabled Flat Buttons", classes="header"),
-                Button("Default", disabled=True, flat=True),
-                Button("Primary!", variant="primary", disabled=True, flat=True),
-                Button.success("Success!", disabled=True, flat=True),
-                Button.warning("Warning!", disabled=True, flat=True),
-                Button.error("Error!", disabled=True, flat=True),
-            ),
-        )
-
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        self.exit(str(event.button))
+        yield Static("One", classes="box")
+        yield Static("Two", classes="box")
+        yield Static("Three", classes="box")
+        yield Static("Four", classes="box")
+        yield Static("Five", classes="box")
+        yield Static("Six", classes="box")
 
 
 if __name__ == "__main__":
-    app = ButtonsApp()
-    print(app.run())
+    app = GridLayoutExample()
+    app.run()
