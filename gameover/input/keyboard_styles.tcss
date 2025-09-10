@@ -11,9 +11,11 @@
 
 
 .key{
-    border: solid green;
     content-align: center middle;
     height: 100%;
+    padding: 0;
+    margin: 0;
+
 }
 
 .key.normal {
@@ -22,8 +24,14 @@
 
 .key.placeholder {
     border: blank;
+    background: $background;
+
 }
 
 .key.long{
     row-span: 2;
+}
+
+.key.software-triggered{
+    background: $primary;
 }
