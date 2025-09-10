@@ -1,9 +1,23 @@
 Screen {
     layout: grid;
-    grid-size: 15 10;
+    grid-size: 15 8;
 }
 
 .box {
     height: 100%;
     border: solid green;
+}
+
+
+.key{
+    border: solid green;
+}
+
+.key .placeholder {
+    border: solid grey;
+}
+
+
+.key .long{
+    row-span: 2;
 }
