@@ -1,23 +1,29 @@
-Screen {
+#keyboard-grid {
     layout: grid;
     grid-size: 15 8;
+    grid-columns: 7;
+    grid-rows: 3;
+    width: auto;
+    height: auto;
+    grid-gutter: 0 1;
 }
 
-.box {
-    height: 100%;
-    border: solid green;
-}
 
 
 .key{
     border: solid green;
+    content-align: center middle;
+    height: 100%;
 }
 
-.key .placeholder {
-    border: solid grey;
+.key.normal {
+
 }
 
+.key.placeholder {
+    border: blank;
+}
 
-.key .long{
+.key.long{
     row-span: 2;
 }

@@ -1,20 +1,26 @@
 from textual.app import App, ComposeResult
 from textual.widgets import Static
+from textual.containers import Grid
 from gameover.keyboards.ergodox_tony import large
 
 class GridLayoutExample(App):
     CSS_PATH = "styles.tcss"
 
     def compose(self) -> ComposeResult:
+        key_type_and_content = parse_keyboard_layout(large)
+        with Grid(id='keyboard-grid'):
+            for key_type, key_content in key_type_and_content:
+                if key_type == 'long-bottom':
+                    continue
 
-        for i in range(149):
-            yield Static(f"{i+1}", classes="box")
+                yield Static(key_content, classes=f'key {key_type}')
+            
 
 
 
 
 
-def parse_keyboard_layout(layout_string):
+def parse_keyboard_layout(layout_string) -> list[tuple[str, str]]:
 
     content_rows_only = []
     for line_num, line in enumerate(layout_string.split('\n')):
@@ -36,28 +42,33 @@ def parse_keyboard_layout(layout_string):
         key_content = key_content.strip()
 
         if key_content != '':
-            key_type = 'content'
+            key_type = 'normal'
 
         if key_content == '^':
-            key_type = 'long_top'
+            key_type = 'long'
             # look below to get the content of the long key
             _, key_content = get_key_content(row+1, col, content_rows_only, do_not_recurse=True)
 
         # look above to check if the key is bottom of a long key
-        if row > 0 and key_type == 'content' and not do_not_recurse:
+        if row > 0 and key_type == 'normal' and not do_not_recurse:
             above_key_type, _ = get_key_content(row-1, col, content_rows_only)
-            if above_key_type == 'long_top':
-                key_type = 'long_bottom'
+            if above_key_type == 'long':
+                key_type = 'long-bottom'
         
         return key_type, key_content
+
+    key_type_and_content = []
 
     for row in range(len(content_rows_only)):
         for col in range(15):
             key_type, key_content = get_key_content(row, col, content_rows_only)
-            print(row, col, key_type, key_content)
+            key_type_and_content.append((key_type, key_content))
+
+    return key_type_and_content
 
 if __name__ == "__main__":
-    # app = GridLayoutExample()
-    # app.run()
+    app = GridLayoutExample()
+    app.run()
     #print(large)
-    parse_keyboard_layout(large)
+    #key_type_and_content = parse_keyboard_layout(large)
+    #print(key_type_and_content)
