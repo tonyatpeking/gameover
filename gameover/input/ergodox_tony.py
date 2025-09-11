@@ -1,112 +1,122 @@
+from enum import Enum
+from pynput.keyboard import Key, KeyCode
+from pynput.mouse import Button
+from gameover.input.windows_constants import *
+
+
 large = r"""
 +-----------------------------------------+     +-----------------------------------------+
 | Esc |  1  |  2  |  3  |  4  |  5  |  `  |     |  =  |  6  |  7  |  8  |  9  |  0  |  -  |
 |-----+-----+-----+-----+-----+-----+-----|     |-----+-----+-----+-----+-----+-----+-----|
 | Tab |  Q  |  W  |  E  |  R  |  T  |  ^  |     |  ^  |  Y  |  U  |  I  |  O  |  P  |  \  |
 |-----+-----+-----+-----+-----+-----|     |     |     |-----+-----+-----+-----+-----+-----|
-|C+A+S|  A  |  S  |  D  |  F  |  G  |  (  |     |  )  |  H  |  J  |  K  |  L  |  ;  |  '  |
+| CAS |  A  |  S  |  D  |  F  |  G  |  (  |     |  )  |  H  |  J  |  K  |  L  |  ;  |  '  |
 |-----+-----+-----+-----+-----+-----|-----|     |-----|-----+-----+-----+-----+-----+-----|
-|Shift|  Z  |  X  |  C  |  V  |  B  |  [  |     |  ]  |  N  |  M  |  ,  |  .  |  /  |Shift|
+| LSf |  Z  |  X  |  C  |  V  |  B  |  [  |     |  ]  |  N  |  M  |  ,  |  .  |  /  | RSf |
 +-----+-----+-----+-----+-----+-----+-----+     +-----+-----+-----+-----+-----+-----+-----+
-| Ctrl| C+A | Alt | Left|Right|                             |  Up | Down|  L1 |  L2 | Win |
+| Ctl | C+A | Alt | Lft | Rgt |                             |  Up | Dwn |  L1 |  L2 | Win |
 +-----------------------------+-----------+     +-----------+-----------------------------+
-                              |  F2 | F11 |     | Home| End |
+                              |  F2 | F11 |     | Hom | End |
                         +-----|-----|-----|     |-----+-----+-----+
-                        |  ^  |  ^  | F12 |     | PgUp|  ^  |  ^  |
+                        |  ^  |  ^  | F12 |     | PgU |  ^  |  ^  |
                         |     |     |-----|     |-----|     |     |
-                        |BkSpc| Del |  F5 |     | PgDn|Enter|Space|
+                        | BkS | Del |  F5 |     | PgD | Ent | Spc |
                         +-----------------+     +-----------------+
 """
 
-key_str_to_vk = {
-    'LButton': '0x01',
-    'RButton': '0x02',
-    'MButton': '0x04',
-    'XButton1': '0x04',
-    'XButton2': '0x06',
-    'BkSpc': '0x08',
-    'Tab': '0x09',
-    'Enter': '0x0D',
-    'Shift': ('or','0xA0', '0xA1'),
-    'Ctrl': '0xA2',
-    'Alt': '0xA4',
-    'C+A': ('and', '0xA2', '0xA4'),
-    'C+A+S': ('and', '0xA2', '0xA4', '0xA0'),
-    'Esc': '0x1B',
-    'Space': '0x20',
-    'PgUp': '0x21',
-    'PgDn': '0x22',
-    'End': '0x23',
-    'Home': '0x24',
-    'Left': '0x25',
-    'Up': '0x26',
-    'Right': '0x27',
-    'Down': '0x28',
-    'Del': '0x2E',
-    'Win': '0x5B',
+
+
+
+keystr_to_vk = {
+    'LButton': VK_LBUTTON,
+    'RButton': VK_RBUTTON,
+    'MButton': VK_MBUTTON,
+    'XButton1': VK_XBUTTON1,
+    'XButton2': VK_XBUTTON2,
+    'BkS': VK_BACK,
+    'Tab': VK_TAB,
+    'Ent': VK_RETURN,
+    'LSf': VK_LSHIFT,
+    'RSf': VK_RSHIFT,
+    'Ctl': VK_LCONTROL,
+    'Alt': VK_LMENU,
+    'C+A': ('and', VK_LCONTROL, VK_LMENU),
+    'CAS': ('and', VK_LCONTROL, VK_LMENU, VK_LSHIFT),
+    'Esc': VK_ESCAPE,
+    'Spc': VK_SPACE,
+    'PgU': VK_PRIOR,
+    'PgD': VK_NEXT,
+    'End': VK_END,
+    'Hom': VK_HOME,
+    'Lft': VK_LEFT,
+    'Up': VK_UP,
+    'Rgt': VK_RIGHT,
+    'Dwn': VK_DOWN,
+    'Del': VK_DELETE,
+    'Win': VK_LWIN,
     
-    'F2': '0x71',
-    'F11': '0x7A',
-    'F12': '0x7B',
-    'F5': '0x74',
+    'F2': VK_F2,
+    'F11': VK_F11,
+    'F12': VK_F12,
+    'F5': VK_F5,
 
-    '`': '0xC0',
-    '=': '0xBB',
-    '-': '0xBD',
-    '\\': '0xDC',
-    '(': ('and','0xA0', '0x39'),
-    ')': ('and','0xA0', '0x30'),
-    ';': '0xBA',
-    "'": '0xDE',
-    '[': '0xDB',
-    ']': '0xDD',
-    ',': '0xBC',
-    '.': '0xBE',
-    '/': '0xBF',
+    '`': VK_OEM_3,
+    '=': VK_OEM_PLUS,
+    '-': VK_OEM_MINUS,
+    '\\': VK_OEM_5,
+    '(': ('and',VK_LSHIFT, VK_9),
+    ')': ('and',VK_LSHIFT, VK_0),
+    ';': VK_OEM_1,
+    "'": VK_OEM_7,
+    '[': VK_OEM_4,
+    ']': VK_OEM_6,
+    ',': VK_OEM_COMMA,
+    '.': VK_OEM_PERIOD,
+    '/': VK_OEM_2,
 
-    '0': '0x30',
-    '1': '0x31',
-    '2': '0x32',
-    '3': '0x33',
-    '4': '0x34',
-    '5': '0x35',
-    '6': '0x36',
-    '7': '0x37',
-    '8': '0x38',
-    '9': '0x39',
+    '0': VK_0,
+    '1': VK_1,
+    '2': VK_2,
+    '3': VK_3,
+    '4': VK_4,
+    '5': VK_5,
+    '6': VK_6,
+    '7': VK_7,
+    '8': VK_8,
+    '9': VK_9,
 
-    'A': '0x41',
-    'B': '0x42',
-    'C': '0x43',
-    'D': '0x44',
-    'E': '0x45',
-    'F': '0x46',
-    'G': '0x47',
-    'H': '0x48',
-    'I': '0x49',
-    'J': '0x4A',
-    'K': '0x4B',
-    'L': '0x4C',
-    'M': '0x4D',
-    'N': '0x4E',
-    'O': '0x4F',
-    'P': '0x50',
-    'Q': '0x51',
-    'R': '0x52',
-    'S': '0x53',
-    'T': '0x54',
-    'U': '0x55',
-    'V': '0x56',
-    'W': '0x57',
-    'X': '0x58',
-    'Y': '0x59',
-    'Z': '0x5A',
+    'A': VK_A,
+    'B': VK_B,
+    'C': VK_C,
+    'D': VK_D,
+    'E': VK_E,
+    'F': VK_F,
+    'G': VK_G,
+    'H': VK_H,
+    'I': VK_I,
+    'J': VK_J,
+    'K': VK_K,
+    'L': VK_L,
+    'M': VK_M,
+    'N': VK_N,
+    'O': VK_O,
+    'P': VK_P,
+    'Q': VK_Q,
+    'R': VK_R,
+    'S': VK_S,
+    'T': VK_T,
+    'U': VK_U,
+    'V': VK_V,
+    'W': VK_W,
+    'X': VK_X,
+    'Y': VK_Y,
+    'Z': VK_Z,
 }
 
-vk_to_key_str = {v: k for k, v in key_str_to_vk.items()}
-# Shift is a special case since there are two of them
-vk_to_key_str['0xA0'] = 'Shift'
-vk_to_key_str['0xA1'] = 'Shift'
+vk_to_keystr = {v: k for k, v in keystr_to_vk.items()}
+
+
+
 
 
 medium = r"""

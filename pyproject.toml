@@ -20,6 +20,7 @@ dependencies = [
   "psutil",
   "pathspec",
   "pynput",
+  "rich",
 
 ]
 
