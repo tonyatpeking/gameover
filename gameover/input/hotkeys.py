@@ -7,6 +7,8 @@ from pynput.keyboard import Key, KeyCode
 from gameover.input.ergodox_tony import vk_to_keystr
 
 from gameover.input.windows_constants import *
+import atexit
+
 
 
 def int_to_hex_str_02X(num: int) -> str:
@@ -44,19 +46,25 @@ class Hotkeys:
     def stop_listening(self):
         #self.mouse_listener.stop()
         self.keyboard_listener.stop()
+        self.keyboard_listener.join()
 
     def on_hardware_key_down(self, vk_code: int):
         self.input_state[vk_code] = True
-        for callback in self.on_key_change:
-            callback(vk_code, True, self.input_state)
+
 
     def on_hardware_key_up(self, vk_code: int):
         self.input_state[vk_code] = False
-        for callback in self.on_key_change:
-            callback(vk_code, False, self.input_state)
 
-    def register_on_key_change(self, callback):
+
+    def on_hardware_key_change(self, vk_code: int, is_pressed: bool):
+        for callback in self.on_key_change:
+            callback(vk_code, is_pressed, self.input_state)
+
+    def register_on_hardware_key_change(self, callback):
         self.on_key_change.append(callback)
+
+    def suppress(self):
+        self.keyboard_listener.suppress_event() # type: ignore
 
     @staticmethod
     def get_instance():
@@ -71,7 +79,7 @@ class Hotkeys:
                         & (data.LLMHF_INJECTED 
                            | data.LLMHF_LOWER_IL_INJECTED)
                         )
-        print(f'mouse event: {int_to_hex_str_04X(msg)}, {data} injected: {injected}')
+        #print(f'mouse event: {int_to_hex_str_04X(msg)}, {data} injected: {injected}')
         #hotkeys.mouse_listener.suppress_event() # type: ignore
         
         return True
@@ -86,6 +94,9 @@ class Hotkeys:
                            | data.LLKHF_LOWER_IL_INJECTED)
                         )
         
+        if injected:
+            return True
+        
         vk_code_str = int_to_hex_str_02X(data.vkCode)
         #print(f'{vk_to_keystr[data.vkCode]} {msg} injected: {injected}')
 
@@ -95,15 +106,17 @@ class Hotkeys:
             hotkeys.on_hardware_key_down(data.vkCode)
         elif msg == WM_KEYUP or msg == WM_SYSKEYUP:
             hotkeys.on_hardware_key_up(data.vkCode)
+        hotkeys.on_hardware_key_change(data.vkCode, msg == WM_KEYDOWN or msg == WM_SYSKEYDOWN)
 
-        if data.vkCode == VK_F5:
-            print('exiting')
-            hotkeys.keyboard_listener.suppress_event() # type: ignore
-            hotkeys.stop_listening()
 
-        hotkeys.keyboard_listener.suppress_event() # type: ignore
+        #hotkeys.keyboard_listener.suppress_event() # type: ignore
         return True
 
+def cleanup():
+    hotkeys = Hotkeys.get_instance()
+    hotkeys.stop_listening()
+
+atexit.register(cleanup)
 
 if __name__ == '__main__':
     hotkeys = Hotkeys()
