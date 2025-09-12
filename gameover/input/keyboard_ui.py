@@ -29,7 +29,7 @@ class KeyboardUI(App):
                 if key_type == 'long-bottom':
                     continue
                 is_disabled = key_type == 'placeholder'
-                button = Button(key_content, classes=f'key {key_type}', disabled=is_disabled, flat=True)
+                button = Static(key_content, classes=f'key {key_type}', disabled=is_disabled)
                 if not is_disabled:
                     key_vk = keystr_to_vk.get(key_content, '')
                     self.buttons[key_vk] = button

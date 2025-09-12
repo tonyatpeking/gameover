@@ -1,11 +1,13 @@
 #keyboard-grid {
     layout: grid;
     grid-size: 15 8;
-    grid-columns: 5;
+    grid-columns: 3;
     grid-rows: 1;
     width: auto;
     height: auto;
-    grid-gutter: 0 0;
+    grid-gutter: 0 1;
+    background: $panel;
+    padding: 1 2
 }
 
 
@@ -24,8 +26,6 @@
 
 .key.placeholder {
     border: blank;
-    background: $background;
-
 }
 
 .key.long{
