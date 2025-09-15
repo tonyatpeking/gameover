@@ -42,16 +42,26 @@ class KeyboardUI(App):
         sys.stdout = StdoutRedirector(self.logger)
         sys.stderr = StdoutRedirector(self.logger)
 
-    def process_key_change(self, vk_code: int, is_pressed: bool, input_state: dict[int, bool]):
+    def process_hardware_key_change(self, vk_code: int, is_pressed: bool, input_state: dict[int, bool]):
+        self.process_key_change(vk_code, is_pressed, input_state, False)
+
+    def process_software_key_change(self, vk_code: int, is_pressed: bool, input_state: dict[int, bool]):
+        self.process_key_change(vk_code, is_pressed, input_state, True)
+
+    def process_key_change(self, vk_code: int, is_pressed: bool, input_state: dict[int, bool], software_triggered: bool):
         button = self.buttons.get(vk_code, None)
+        classes = ''
+        if software_triggered:
+            classes = 'software-triggered'
+        else:
+            classes = 'hardware-triggered'
+
         if button is not None:
             if is_pressed:
-                button.add_class('software-triggered')
+                button.add_class(classes)
             else:
-                button.remove_class('software-triggered')
+                button.remove_class(classes)
         button.refresh()
-        number_of_pressed_keys = sum(input_state.values())
-        #print(f'key change: {vk_code}, {is_pressed}, {number_of_pressed_keys}')
 
 
 def parse_keyboard_layout(layout_string) -> list[tuple[str, str]]:

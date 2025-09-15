@@ -36,7 +36,8 @@ class Hotkeys:
         for i in range(NUM_VK_KEYS):
             self.input_state[i] = False
 
-        self.on_key_change = []
+        self.hardware_key_change_callbacks = []
+        self.software_key_change_callbacks = []
 
 
     def start_listening(self):
@@ -57,11 +58,18 @@ class Hotkeys:
 
 
     def on_hardware_key_change(self, vk_code: int, is_pressed: bool):
-        for callback in self.on_key_change:
+        for callback in self.hardware_key_change_callbacks:
             callback(vk_code, is_pressed, self.input_state)
 
-    def register_on_hardware_key_change(self, callback):
-        self.on_key_change.append(callback)
+    def on_software_key_change(self, vk_code: int, is_pressed: bool):
+        for callback in self.software_key_change_callbacks:
+            callback(vk_code, is_pressed, self.input_state)
+    
+    def register_hardware_key_change_callback(self, callback):
+        self.hardware_key_change_callbacks.append(callback)
+
+    def register_software_key_change_callback(self, callback):
+        self.software_key_change_callbacks.append(callback)
 
     def suppress(self):
         self.keyboard_listener.suppress_event() # type: ignore
@@ -94,9 +102,6 @@ class Hotkeys:
                            | data.LLKHF_LOWER_IL_INJECTED)
                         )
         
-        if injected:
-            return True
-        
         vk_code_str = int_to_hex_str_02X(data.vkCode)
         #print(f'{vk_to_keystr[data.vkCode]} {msg} injected: {injected}')
 
@@ -106,7 +111,12 @@ class Hotkeys:
             hotkeys.on_hardware_key_down(data.vkCode)
         elif msg == WM_KEYUP or msg == WM_SYSKEYUP:
             hotkeys.on_hardware_key_up(data.vkCode)
-        hotkeys.on_hardware_key_change(data.vkCode, msg == WM_KEYDOWN or msg == WM_SYSKEYDOWN)
+
+        if injected:
+            hotkeys.on_software_key_change(data.vkCode, msg == WM_KEYDOWN or msg == WM_SYSKEYDOWN)
+        else:
+            hotkeys.on_hardware_key_change(data.vkCode, msg == WM_KEYDOWN or msg == WM_SYSKEYDOWN)
+
 
 
         #hotkeys.keyboard_listener.suppress_event() # type: ignore

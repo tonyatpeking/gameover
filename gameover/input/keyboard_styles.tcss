@@ -33,5 +33,9 @@
 }
 
 .key.software-triggered{
+    background: $success;
+}
+
+.key.hardware-triggered{
     background: $primary;
 }
