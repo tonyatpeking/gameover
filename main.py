@@ -1,8 +1,6 @@
 from gameover.input.keyboard_ui import KeyboardUI
 from gameover.input.hotkeys import Hotkeys
-from gameover.input.tony_hotkeys import tony_hotkeys_list
-
-
+from gameover.input.tony_hotkeys import TonyHotkeys
 
 
 if __name__ == "__main__":
@@ -11,14 +9,8 @@ if __name__ == "__main__":
     hotkeys.register_hardware_key_change_callback(tui.process_hardware_key_change)
     hotkeys.register_software_key_change_callback(tui.process_software_key_change)
 
-    for hotkey in tony_hotkeys_list:
-        hotkeys.register_hardware_key_change_callback(hotkey)
-    
+    tony_hotkeys = TonyHotkeys(tui, hotkeys)
+    tony_hotkeys.register_hotkeys()
 
     hotkeys.start_listening()
     tui.run()
-
-
-    
-
-
