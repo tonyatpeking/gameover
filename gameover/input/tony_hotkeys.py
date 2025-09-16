@@ -128,6 +128,5 @@ class TonyHotkeys:
 
     def register_hotkeys(self):
         self.hotkeys.register_hardware_key_change_callback(self.CAS_up_hotkey)
-        # self.hotkeys.register_software_key_change_callback(self.scratch_hotkey)
         self.hotkeys.register_hardware_key_change_callback(self.cursor_copy_down)
-        self.hotkeys.register_hardware_key_change_callback(self.quit_app_hotkey)
+        # self.hotkeys.register_hardware_key_change_callback(self.quit_app_hotkey)
