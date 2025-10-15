@@ -1,5 +1,25 @@
 # gameover
 
+## Insight
+
+- Context switching is a pain
+- Unified custom context
+- E.g. VLC note taker
+    - Normally this has to be done in the following steps
+        - Context switch to VLC
+        - Seek video
+        - Mental note on time stamp
+        - Context switch to note taker
+        - Manually type in time stamp and make note
+    - With custom context
+        - Special context include VLC and note taker
+        - Gameover intercepts all inputs to prevent hotkey clashes
+        - Any hotkeys are sent to either VLC or Note Taker or both depending on config
+        - Hotkey remapping
+        - Now no more context switching
+
+## Playing with markdown and HTML
+
 <pre>
 <button>foo</button> <button>foo</button>
 <button>foo</button> <button>foo</button>

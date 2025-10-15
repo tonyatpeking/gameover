@@ -21,6 +21,7 @@ dependencies = [
   "pathspec",
   "pynput",
   "rich",
+  "python-vlc",
 
 ]
 
