@@ -1,4 +1,4 @@
-from gameover.input.hotkeys import Hotkeys
+from gameover.input.hotkeys import Hotkeys, InputState, KeyState
 from gameover.input.windows_constants import *
 from gameover.input.keyboard_ui import KeyboardUI
 from pynput.keyboard import Key, Controller
@@ -31,9 +31,7 @@ class TonyHotkeys:
         self.hotkeys = hotkeys
         self.CAS_up_allowed = True
 
-    def CAS_up_hotkey(
-        self, vk_code: int, is_pressed: bool, input_state: dict[int, bool]
-    ):
+    def CAS_up_hotkey(self, vk_code: int, is_pressed: bool, input_state: InputState):
         """
         outputs Ctrl+Alt+Shift+A IFF C+A+S is released without any other keys being pressed
         """
@@ -44,11 +42,12 @@ class TonyHotkeys:
             self.CAS_up_allowed = False
             return
 
+        pressed_keys = input_state.pressed_keys()
+
         if self.CAS_up_allowed and not is_pressed and vk_code in CAS:
-            keys_pressed = {vk_code for vk_code in input_state if input_state[vk_code]}
             # the input state already has the vk_code released, so we add it back
-            keys_pressed.add(vk_code)
-            if keys_pressed == CAS:
+            pressed_keys.add(vk_code)
+            if pressed_keys == CAS:
                 controller = Controller()
                 with controller.pressed(Key.ctrl, Key.alt, Key.shift):
                     controller.press("a")
@@ -59,20 +58,15 @@ class TonyHotkeys:
 
         # clear CAS state if empty keyboard
         if is_pressed == False:
-            keys_pressed = sum(input_state.values())
-            if keys_pressed == 0:
+            if len(pressed_keys) == 0:
                 self.CAS_up_allowed = True
 
-    def quit_app_hotkey(
-        self, vk_code: int, is_pressed: bool, input_state: dict[int, bool]
-    ):
+    def quit_app_hotkey(self, vk_code: int, is_pressed: bool, input_state: InputState):
         if is_pressed and vk_code == VK_F5:
             self.tui.exit()
             return
 
-    def cursor_copy_down(
-        self, vk_code: int, is_pressed: bool, input_state: dict[int, bool]
-    ):
+    def cursor_copy_down(self, vk_code: int, is_pressed: bool, input_state: InputState):
         """
         Activates when C+A+S+1 is pressed. This is shown in the tui pretty box.
         After activation, when S+9 is pressed
@@ -86,8 +80,8 @@ class TonyHotkeys:
 
         ACTIVATION_KEYS: set = {VK_LCONTROL, VK_LMENU, VK_LSHIFT, VK_1}
         TRIGGER_KEYS: set = {VK_LSHIFT, VK_9}
-        input_state_set = {vk_code for vk_code in input_state if input_state[vk_code]}
-        if is_pressed and input_state_set == ACTIVATION_KEYS:
+        pressed_keys = input_state.pressed_keys()
+        if is_pressed and pressed_keys == ACTIVATION_KEYS:
             self.cursor_copy_down_active = not self.cursor_copy_down_active
             self.tui.set_pretty_data(
                 "cursor_copy_down_active", self.cursor_copy_down_active
@@ -96,7 +90,7 @@ class TonyHotkeys:
         if not self.cursor_copy_down_active:
             return
 
-        if is_pressed and input_state_set == TRIGGER_KEYS:
+        if is_pressed and pressed_keys == TRIGGER_KEYS:
 
             path = Path(self.tui.text_area.text)
             if not path.exists():

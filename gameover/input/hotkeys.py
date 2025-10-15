@@ -1,6 +1,6 @@
 import sys
 
-from time import sleep
+import time
 
 from pynput import keyboard, mouse
 from pynput.keyboard import Key, KeyCode
@@ -9,20 +9,87 @@ from gameover.input.ergodox_tony import vk_to_keystr
 from gameover.input.windows_constants import *
 import atexit
 
+import asyncio
+import threading
+
+AUTO_RELEASE_DELAY = 10
 
 
 def int_to_hex_str_02X(num: int) -> str:
-    return f'0x{num:02X}'
+    return f"0x{num:02X}"
+
 
 def int_to_hex_str_04X(num: int) -> str:
-    return f'0x{num:04X}'
+    return f"0x{num:04X}"
+
+
+class KeyState:
+    def __init__(self):
+        self._is_pressed = False
+        self._pressed_when: float | None = None
+        self._auto_release_task: asyncio.Task | None = None
+
+    def get_hotkey_loop(self) -> asyncio.AbstractEventLoop:
+        return Hotkeys.get_instance().loop
+
+    def schedule_auto_release(self, delay: float = AUTO_RELEASE_DELAY):
+        loop = self.get_hotkey_loop()
+        if self._auto_release_task:
+            return
+
+        def create_task():
+            self._auto_release_task = loop.create_task(self.auto_release(delay))
+
+        loop.call_soon_threadsafe(create_task)
+
+    def cancel_auto_release(self):
+        if self._auto_release_task:
+            loop = self.get_hotkey_loop()
+            loop.call_soon_threadsafe(self._auto_release_task.cancel)
+            self._auto_release_task = None
+
+    async def auto_release(self, delay: float = AUTO_RELEASE_DELAY):
+        await asyncio.sleep(delay)
+        self._is_pressed = False
+        self._pressed_when = None
+        self._auto_release_task = None
+        print(f"auto released")
+
+    @property
+    def is_pressed(self):
+        return self._is_pressed
+
+    @is_pressed.setter
+    def is_pressed(self, value: bool):
+        self._is_pressed = value
+        if value:
+            self._pressed_when = time.time() if value else None
+            self.schedule_auto_release()
+        else:
+            self.cancel_auto_release()
+
+    @property
+    def pressed_when(self):
+        return self._pressed_when
+
+
+class InputState(dict[int, KeyState]):
+    def pressed_keys(self) -> set[int]:
+        return {vk_code for vk_code in self if self[vk_code].is_pressed}
+
 
 class Hotkeys:
     instance = None
+
     def __init__(self):
         if Hotkeys.instance is not None:
             raise Exception("Hotkeys already initialized, use Hotkeys.instance instead")
         Hotkeys.instance = self
+
+        self.loop = asyncio.new_event_loop()
+        self.thread = threading.Thread(target=self.loop_runner, daemon=True)
+        self.thread.start()
+
         self.keyboard_listener = keyboard.Listener(
             win32_event_filter=Hotkeys.win32_event_filter_kb
         )
@@ -31,31 +98,32 @@ class Hotkeys:
         )
 
         # input state is a dictionary of vk codes to bools (pressed or not)
-        self.input_state: dict[int, bool] = {}
+        self.input_state: InputState = InputState()
         NUM_VK_KEYS = 255
         for i in range(NUM_VK_KEYS):
-            self.input_state[i] = False
+            self.input_state[i] = KeyState()
 
         self.hardware_key_change_callbacks = []
         self.software_key_change_callbacks = []
 
+    def loop_runner(self):
+        asyncio.set_event_loop(self.loop)
+        self.loop.run_forever()
 
     def start_listening(self):
         self.keyboard_listener.start()
-        #self.mouse_listener.start()
+        # self.mouse_listener.start()
 
     def stop_listening(self):
-        #self.mouse_listener.stop()
+        # self.mouse_listener.stop()
         self.keyboard_listener.stop()
         self.keyboard_listener.join()
 
     def on_hardware_key_down(self, vk_code: int):
-        self.input_state[vk_code] = True
-
+        self.input_state[vk_code].is_pressed = True
 
     def on_hardware_key_up(self, vk_code: int):
-        self.input_state[vk_code] = False
-
+        self.input_state[vk_code].is_pressed = False
 
     def on_hardware_key_change(self, vk_code: int, is_pressed: bool):
         for callback in self.hardware_key_change_callbacks:
@@ -64,7 +132,7 @@ class Hotkeys:
     def on_software_key_change(self, vk_code: int, is_pressed: bool):
         for callback in self.software_key_change_callbacks:
             callback(vk_code, is_pressed, self.input_state)
-    
+
     def register_hardware_key_change_callback(self, callback):
         self.hardware_key_change_callbacks.append(callback)
 
@@ -72,7 +140,7 @@ class Hotkeys:
         self.software_key_change_callbacks.append(callback)
 
     def suppress(self):
-        self.keyboard_listener.suppress_event() # type: ignore
+        self.keyboard_listener.suppress_event()  # type: ignore
 
     @staticmethod
     def get_instance():
@@ -83,27 +151,23 @@ class Hotkeys:
     @staticmethod
     def win32_event_filter_mouse(msg, data):
         hotkeys = Hotkeys.instance
-        injected = bool(data.flags 
-                        & (data.LLMHF_INJECTED 
-                           | data.LLMHF_LOWER_IL_INJECTED)
-                        )
-        #print(f'mouse event: {int_to_hex_str_04X(msg)}, {data} injected: {injected}')
-        #hotkeys.mouse_listener.suppress_event() # type: ignore
-        
+        injected = bool(
+            data.flags & (data.LLMHF_INJECTED | data.LLMHF_LOWER_IL_INJECTED)
+        )
+        # print(f'mouse event: {int_to_hex_str_04X(msg)}, {data} injected: {injected}')
+        # hotkeys.mouse_listener.suppress_event() # type: ignore
+
         return True
 
     @staticmethod
     def win32_event_filter_kb(msg, data):
 
+        injected = bool(
+            data.flags & (data.LLKHF_INJECTED | data.LLKHF_LOWER_IL_INJECTED)
+        )
 
-        
-        injected = bool(data.flags 
-                        & (data.LLKHF_INJECTED 
-                           | data.LLKHF_LOWER_IL_INJECTED)
-                        )
-        
         vk_code_str = int_to_hex_str_02X(data.vkCode)
-        #print(f'{vk_to_keystr[data.vkCode]} {msg} injected: {injected}')
+        # print(f'{vk_to_keystr[data.vkCode]} {msg} injected: {injected}')
 
         hotkeys = Hotkeys.instance
         assert hotkeys is not None
@@ -113,31 +177,33 @@ class Hotkeys:
             hotkeys.on_hardware_key_up(data.vkCode)
 
         if injected:
-            hotkeys.on_software_key_change(data.vkCode, msg == WM_KEYDOWN or msg == WM_SYSKEYDOWN)
+            hotkeys.on_software_key_change(
+                data.vkCode, msg == WM_KEYDOWN or msg == WM_SYSKEYDOWN
+            )
         else:
-            hotkeys.on_hardware_key_change(data.vkCode, msg == WM_KEYDOWN or msg == WM_SYSKEYDOWN)
+            hotkeys.on_hardware_key_change(
+                data.vkCode, msg == WM_KEYDOWN or msg == WM_SYSKEYDOWN
+            )
 
-
-
-        #hotkeys.keyboard_listener.suppress_event() # type: ignore
+        # hotkeys.keyboard_listener.suppress_event() # type: ignore
         return True
+
 
 def cleanup():
     hotkeys = Hotkeys.get_instance()
     hotkeys.stop_listening()
 
+
 atexit.register(cleanup)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     hotkeys = Hotkeys()
     hotkeys.start_listening()
     keyboard_controller = keyboard.Controller()
     mouse_controller = mouse.Controller()
     while hotkeys.keyboard_listener.running:
         sleep(0.2)
-        #mouse_controller.click(mouse.Button.left)
-        #mouse_controller.release(mouse.Button.left)
-        #keyboard_controller.press('a')
-        #keyboard_controller.release('a')
-
-    
+        # mouse_controller.click(mouse.Button.left)
+        # mouse_controller.release(mouse.Button.left)
+        # keyboard_controller.press('a')
+        # keyboard_controller.release('a')

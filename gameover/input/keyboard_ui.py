@@ -7,6 +7,9 @@ from gameover.input.ergodox_tony import large, keystr_to_vk
 from gameover.input.windows_constants import *
 
 
+from gameover.input.hotkeys import KeyState, InputState
+
+
 class StdoutRedirector:
     def __init__(self, log: RichLog):
         self.log = log
@@ -56,12 +59,12 @@ class KeyboardUI(App):
         sys.stderr = StdoutRedirector(self.logger)
 
     def process_hardware_key_change(
-        self, vk_code: int, is_pressed: bool, input_state: dict[int, bool]
+        self, vk_code: int, is_pressed: bool, input_state: InputState
     ):
         self.process_key_change(vk_code, is_pressed, input_state, False)
 
     def process_software_key_change(
-        self, vk_code: int, is_pressed: bool, input_state: dict[int, bool]
+        self, vk_code: int, is_pressed: bool, input_state: InputState
     ):
         self.process_key_change(vk_code, is_pressed, input_state, True)
 
@@ -73,7 +76,7 @@ class KeyboardUI(App):
         self,
         vk_code: int,
         is_pressed: bool,
-        input_state: dict[int, bool],
+        input_state: InputState,
         software_triggered: bool,
     ):
         button = self.buttons.get(vk_code, None)
