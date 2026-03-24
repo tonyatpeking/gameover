@@ -31,10 +31,13 @@ class TonyHotkeys:
         self.hotkeys = hotkeys
         self.CAS_up_allowed = True
 
-    def CAS_up_hotkey(self, vk_code: int, is_pressed: bool, input_state: InputState):
+    def CAS_up_hotkey(self, vk_code: int, is_pressed: bool, is_software_triggered: bool, input_state_apps: InputState, input_state_hardware: InputState):
         """
         outputs Ctrl+Alt+Shift+A IFF C+A+S is released without any other keys being pressed
         """
+
+        if is_software_triggered:
+            return
 
         CAS: set = {VK_LCONTROL, VK_LMENU, VK_LSHIFT}
 
@@ -42,7 +45,7 @@ class TonyHotkeys:
             self.CAS_up_allowed = False
             return
 
-        pressed_keys = input_state.pressed_keys()
+        pressed_keys = input_state_hardware.pressed_keys()
 
         if self.CAS_up_allowed and not is_pressed and vk_code in CAS:
             # the input state already has the vk_code released, so we add it back
@@ -61,12 +64,12 @@ class TonyHotkeys:
             if len(pressed_keys) == 0:
                 self.CAS_up_allowed = True
 
-    def quit_app_hotkey(self, vk_code: int, is_pressed: bool, input_state: InputState):
+    def quit_app_hotkey(self, vk_code: int, is_pressed: bool, is_software_triggered: bool, input_state_apps: InputState, input_state_hardware: InputState):
         if is_pressed and vk_code == VK_F5:
             self.tui.exit()
             return
 
-    def cursor_copy_down(self, vk_code: int, is_pressed: bool, input_state: InputState):
+    def cursor_copy_down(self, vk_code: int, is_pressed: bool, is_software_triggered: bool, input_state_apps: InputState, input_state_hardware: InputState):
         """
         Activates when C+A+S+1 is pressed. This is shown in the tui pretty box.
         After activation, when S+9 is pressed
@@ -74,13 +77,16 @@ class TonyHotkeys:
         2. Copies the line below <cursor> to the clipboard, selects all text, and pastes
         3. Moves cursor down until <cursor> is above a line with prefix '#' or EOF
         """
+        if is_software_triggered:
+            return
+
         if not hasattr(self, "cursor_copy_down_active"):
             self.cursor_copy_down_active = False
             self.tui.set_pretty_data("cursor_copy_down_active", False)
 
         ACTIVATION_KEYS: set = {VK_LCONTROL, VK_LMENU, VK_LSHIFT, VK_1}
         TRIGGER_KEYS: set = {VK_LSHIFT, VK_9}
-        pressed_keys = input_state.pressed_keys()
+        pressed_keys = input_state_hardware.pressed_keys()
         if is_pressed and pressed_keys == ACTIVATION_KEYS:
             self.cursor_copy_down_active = not self.cursor_copy_down_active
             self.tui.set_pretty_data(
@@ -121,6 +127,6 @@ class TonyHotkeys:
                 self.hotkeys.suppress()
 
     def register_hotkeys(self):
-        self.hotkeys.register_hardware_key_change_callback(self.CAS_up_hotkey)
-        self.hotkeys.register_hardware_key_change_callback(self.cursor_copy_down)
+        self.hotkeys.register_key_change_callback(self.CAS_up_hotkey)
+        self.hotkeys.register_key_change_callback(self.cursor_copy_down)
         # self.hotkeys.register_hardware_key_change_callback(self.quit_app_hotkey)

@@ -58,16 +58,6 @@ class KeyboardUI(App):
         sys.stdout = StdoutRedirector(self.logger)
         sys.stderr = StdoutRedirector(self.logger)
 
-    def process_hardware_key_change(
-        self, vk_code: int, is_pressed: bool, input_state: InputState
-    ):
-        self.process_key_change(vk_code, is_pressed, input_state, False)
-
-    def process_software_key_change(
-        self, vk_code: int, is_pressed: bool, input_state: InputState
-    ):
-        self.process_key_change(vk_code, is_pressed, input_state, True)
-
     def set_pretty_data(self, key, value):
         self.pretty_data[key] = value
         self.pretty_box.update(self.pretty_data)
@@ -76,12 +66,13 @@ class KeyboardUI(App):
         self,
         vk_code: int,
         is_pressed: bool,
-        input_state: InputState,
-        software_triggered: bool,
+        is_software_triggered: bool,
+        input_state_apps: InputState,
+        input_state_hardware: InputState,
     ):
         button = self.buttons.get(vk_code, None)
         classes = ""
-        if software_triggered:
+        if is_software_triggered:
             classes = "software-triggered"
         else:
             classes = "hardware-triggered"
@@ -128,7 +119,8 @@ def parse_keyboard_layout(layout_string) -> list[tuple[str, str]]:
 
         # look above to check if the key is bottom of a long key
         if row > 0 and key_type == "normal" and not do_not_recurse:
-            above_key_type, _ = get_key_content(row - 1, col, content_rows_only)
+            above_key_type, _ = get_key_content(
+                row - 1, col, content_rows_only)
             if above_key_type == "long":
                 key_type = "long-bottom"
 
@@ -138,7 +130,8 @@ def parse_keyboard_layout(layout_string) -> list[tuple[str, str]]:
 
     for row in range(len(content_rows_only)):
         for col in range(15):
-            key_type, key_content = get_key_content(row, col, content_rows_only)
+            key_type, key_content = get_key_content(
+                row, col, content_rows_only)
             key_type_and_content.append((key_type, key_content))
 
     return key_type_and_content

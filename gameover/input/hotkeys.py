@@ -1,6 +1,7 @@
 import sys
 
 import time
+from typing import Callable
 
 from pynput import keyboard, mouse
 from pynput.keyboard import Key, KeyCode
@@ -38,7 +39,8 @@ class KeyState:
             return
 
         def create_task():
-            self._auto_release_task = loop.create_task(self.auto_release(delay))
+            self._auto_release_task = loop.create_task(
+                self.auto_release(delay))
 
         loop.call_soon_threadsafe(create_task)
 
@@ -83,7 +85,8 @@ class Hotkeys:
 
     def __init__(self):
         if Hotkeys.instance is not None:
-            raise Exception("Hotkeys already initialized, use Hotkeys.instance instead")
+            raise Exception(
+                "Hotkeys already initialized, use Hotkeys.instance instead")
         Hotkeys.instance = self
 
         self.loop = asyncio.new_event_loop()
@@ -97,14 +100,21 @@ class Hotkeys:
             win32_event_filter=Hotkeys.win32_event_filter_mouse
         )
 
-        # input state is a dictionary of vk codes to bools (pressed or not)
-        self.input_state: InputState = InputState()
+        # input_state_apps is a dictionary of vk codes to bools (pressed or not)
+        # this is what other applications see
+        self.input_state_apps: InputState = InputState()
         NUM_VK_KEYS = 255
         for i in range(NUM_VK_KEYS):
-            self.input_state[i] = KeyState()
+            self.input_state_apps[i] = KeyState()
 
-        self.hardware_key_change_callbacks = []
-        self.software_key_change_callbacks = []
+        # input_state_hardware is what the actual state of the hardware is
+        self.input_state_hardware: InputState = InputState()
+        NUM_VK_KEYS = 255
+        for i in range(NUM_VK_KEYS):
+            self.input_state_hardware[i] = KeyState()
+
+        self.key_change_callbacks = []
+        self.is_suppressed = False
 
     def loop_runner(self):
         asyncio.set_event_loop(self.loop)
@@ -119,27 +129,22 @@ class Hotkeys:
         self.keyboard_listener.stop()
         self.keyboard_listener.join()
 
-    def on_hardware_key_down(self, vk_code: int):
-        self.input_state[vk_code].is_pressed = True
+    def update_hardware_key_state(self, vk_code: int, is_pressed: bool):
+        self.input_state_hardware[vk_code].is_pressed = is_pressed
 
-    def on_hardware_key_up(self, vk_code: int):
-        self.input_state[vk_code].is_pressed = False
+    def update_app_key_state(self, vk_code: int, is_pressed: bool):
+        self.input_state_apps[vk_code].is_pressed = is_pressed
 
-    def on_hardware_key_change(self, vk_code: int, is_pressed: bool):
-        for callback in self.hardware_key_change_callbacks:
-            callback(vk_code, is_pressed, self.input_state)
+    def run_key_change_callbacks(self, vk_code: int, is_pressed: bool, is_software_triggered: bool):
+        for callback in self.key_change_callbacks:
+            callback(vk_code, is_pressed,
+                     is_software_triggered, self.input_state_apps, self.input_state_hardware)
 
-    def on_software_key_change(self, vk_code: int, is_pressed: bool):
-        for callback in self.software_key_change_callbacks:
-            callback(vk_code, is_pressed, self.input_state)
-
-    def register_hardware_key_change_callback(self, callback):
-        self.hardware_key_change_callbacks.append(callback)
-
-    def register_software_key_change_callback(self, callback):
-        self.software_key_change_callbacks.append(callback)
+    def register_key_change_callback(self, callback: Callable[[int, bool, bool, InputState, InputState], None]):
+        self.key_change_callbacks.append(callback)
 
     def suppress(self):
+        self.is_suppressed = True
         self.keyboard_listener.suppress_event()  # type: ignore
 
     @staticmethod
@@ -168,22 +173,23 @@ class Hotkeys:
 
         vk_code_str = int_to_hex_str_02X(data.vkCode)
         # print(f'{vk_to_keystr[data.vkCode]} {msg} injected: {injected}')
+        if msg not in [WM_KEYDOWN, WM_SYSKEYDOWN, WM_KEYUP, WM_SYSKEYUP]:
+            print(f'unhandled keyboard event: {msg}')
+            return True
 
         hotkeys = Hotkeys.instance
         assert hotkeys is not None
-        if msg == WM_KEYDOWN or msg == WM_SYSKEYDOWN:
-            hotkeys.on_hardware_key_down(data.vkCode)
-        elif msg == WM_KEYUP or msg == WM_SYSKEYUP:
-            hotkeys.on_hardware_key_up(data.vkCode)
 
-        if injected:
-            hotkeys.on_software_key_change(
-                data.vkCode, msg == WM_KEYDOWN or msg == WM_SYSKEYDOWN
-            )
-        else:
-            hotkeys.on_hardware_key_change(
-                data.vkCode, msg == WM_KEYDOWN or msg == WM_SYSKEYDOWN
-            )
+        hotkeys.is_suppressed = False
+        is_pressed = msg == WM_KEYDOWN or msg == WM_SYSKEYDOWN
+        if not injected:
+            hotkeys.update_hardware_key_state(data.vkCode, is_pressed)
+
+        hotkeys.run_key_change_callbacks(
+            data.vkCode, msg == WM_KEYDOWN or msg == WM_SYSKEYDOWN, injected)
+
+        if not hotkeys.is_suppressed:
+            hotkeys.update_app_key_state(data.vkCode, is_pressed)
 
         # hotkeys.keyboard_listener.suppress_event() # type: ignore
         return True
@@ -202,8 +208,8 @@ if __name__ == "__main__":
     keyboard_controller = keyboard.Controller()
     mouse_controller = mouse.Controller()
     while hotkeys.keyboard_listener.running:
-        sleep(0.2)
-        # mouse_controller.click(mouse.Button.left)
-        # mouse_controller.release(mouse.Button.left)
+        time.sleep(0.2)
+        mouse_controller.click(mouse.Button.left)
+        mouse_controller.release(mouse.Button.left)
         # keyboard_controller.press('a')
         # keyboard_controller.release('a')

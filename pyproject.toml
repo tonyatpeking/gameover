@@ -14,7 +14,6 @@ dependencies = [
   "rich",
   "colored-traceback",
   "textual",
-  "textual-dev",
   "pywin32; sys_platform == 'win32'",
   "types-pywin32; sys_platform == 'win32'",
   "psutil",
