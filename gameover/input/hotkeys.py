@@ -5,15 +5,37 @@ from typing import Callable
 
 from pynput import keyboard, mouse
 from pynput.keyboard import Key, KeyCode
-from gameover.input.ergodox_tony import vk_to_keystr
 
 from gameover.input.windows_constants import *
 import atexit
 
 import asyncio
 import threading
-
+from dataclasses import dataclass
 AUTO_RELEASE_DELAY = 10
+
+# vk_code, is_pressed,
+#                    is_software_triggered, self.input_state_apps, self.#input_state_hardware)
+
+
+@dataclass
+class TriggerInfo:
+    # vk_code of key that was pressed or released
+    vk_code: int
+    # key_str of key that was pressed or released
+    key_str: str
+    # pressed or released
+    is_pressed: bool
+    # true if the key was triggered by software
+    is_software_triggered: bool
+    # list of active layers
+    active_layers: list[str]
+    # layer that the hotkey was defined in
+    defined_layer: str
+    # what keys are currently pressed (according to what other apps on the system see)
+    input_state_apps: InputState
+    # what keys are currently presses (according to hardware)
+    input_state_hardware: InputState
 
 
 def int_to_hex_str_02X(num: int) -> str:
@@ -92,6 +114,8 @@ class Hotkeys:
         self.loop = asyncio.new_event_loop()
         self.thread = threading.Thread(target=self.loop_runner, daemon=True)
         self.thread.start()
+        self.hotkeys = {}
+        self.active_layers = []
 
         self.keyboard_listener = keyboard.Listener(
             win32_event_filter=Hotkeys.win32_event_filter_kb
@@ -103,13 +127,12 @@ class Hotkeys:
         # input_state_apps is a dictionary of vk codes to bools (pressed or not)
         # this is what other applications see
         self.input_state_apps: InputState = InputState()
-        NUM_VK_KEYS = 255
+        NUM_VK_KEYS = 256
         for i in range(NUM_VK_KEYS):
             self.input_state_apps[i] = KeyState()
 
         # input_state_hardware is what the actual state of the hardware is
         self.input_state_hardware: InputState = InputState()
-        NUM_VK_KEYS = 255
         for i in range(NUM_VK_KEYS):
             self.input_state_hardware[i] = KeyState()
 
@@ -136,12 +159,22 @@ class Hotkeys:
         self.input_state_apps[vk_code].is_pressed = is_pressed
 
     def run_key_change_callbacks(self, vk_code: int, is_pressed: bool, is_software_triggered: bool):
+        trigger_info = TriggerInfo(vk_code=vk_code,
+                                   key_str=vk_to_keystr[vk_code],
+                                   is_pressed=is_pressed,
+                                   is_software_triggered=is_software_triggered,
+                                   active_layers=self.active_layers,
+                                   defined_layer="",
+                                   input_state_apps=self.input_state_apps,
+                                   input_state_hardware=self.input_state_hardware)
         for callback in self.key_change_callbacks:
-            callback(vk_code, is_pressed,
-                     is_software_triggered, self.input_state_apps, self.input_state_hardware)
+            callback(trigger_info)
 
-    def register_key_change_callback(self, callback: Callable[[int, bool, bool, InputState, InputState], None]):
+    def register_key_change_callback(self, callback: Callable[[TriggerInfo], None]):
         self.key_change_callbacks.append(callback)
+
+    def register_hotkey(self, hotkey_str: str, callback: Callable[[TriggerInfo], None]):
+        self.hotkeys[hotkey_str] = callback
 
     def suppress(self):
         self.is_suppressed = True

@@ -1,6 +1,10 @@
+#main-container {
+    padding: 0 0
+}
+
 #keyboard-grid {
     layout: grid;
-    grid-size: 15 8;
+    grid-size: 14 8;
     grid-columns: 3;
     grid-rows: 1;
     width: auto;
@@ -9,6 +13,11 @@
     background: $panel;
     padding: 1 2
 }
+
+#text-area {
+    padding: 0 0
+}
+
 
 
 
@@ -21,7 +30,11 @@
 }
 
 .key.normal {
+    
+}
 
+.key.mid-line {
+    width: 1;
 }
 
 .key.placeholder {

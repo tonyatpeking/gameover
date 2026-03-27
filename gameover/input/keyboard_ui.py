@@ -3,11 +3,11 @@ from textual.app import App, ComposeResult
 from textual.widgets import Static, Button, Label, RichLog, Pretty, TextArea
 from textual.containers import Grid, Horizontal, Vertical
 from textual.reactive import reactive
-from gameover.input.ergodox_tony import large, keystr_to_vk
+from gameover.input.ergodox_tony import large
 from gameover.input.windows_constants import *
 
 
-from gameover.input.hotkeys import KeyState, InputState
+from gameover.input.hotkeys import KeyState, InputState, TriggerInfo
 
 
 class StdoutRedirector:
@@ -33,21 +33,22 @@ class KeyboardUI(App):
         self.text_area = None
         key_type_and_content = parse_keyboard_layout(large)
         with Vertical(id="main-container"):
-            with Horizontal(id="top-row"):
-                with Grid(id="keyboard-grid"):
-                    for key_type, key_content in key_type_and_content:
-                        if key_type == "long-bottom":
-                            continue
-                        is_disabled = key_type == "placeholder"
-                        button = Static(
-                            key_content, classes=f"key {key_type}", disabled=is_disabled
-                        )
-                        if not is_disabled:
-                            key_vk = keystr_to_vk.get(key_content, "")
-                            self.buttons[key_vk] = button
-                        yield button
-                self.pretty_box = Pretty(self.pretty_data, id="pretty-box")
-                yield self.pretty_box
+            with Grid(id="keyboard-grid"):
+                for key_type, key_content in key_type_and_content:
+                    if key_type == "long-bottom":
+                        continue
+                    if key_type == "mid-line":
+                        continue
+                    is_disabled = key_type == "placeholder"
+                    button = Static(
+                        key_content, classes=f"key {key_type}", disabled=is_disabled
+                    )
+                    if not is_disabled:
+                        key_vk = keystr_to_vk.get(key_content, "")
+                        self.buttons[key_vk] = button
+                    yield button
+            self.pretty_box = Pretty(self.pretty_data, id="pretty-box")
+            yield self.pretty_box
             self.text_area = TextArea(id="text-area", text="test")
             yield self.text_area
             self.logger = RichLog(id="log")
@@ -64,12 +65,11 @@ class KeyboardUI(App):
 
     def process_key_change(
         self,
-        vk_code: int,
-        is_pressed: bool,
-        is_software_triggered: bool,
-        input_state_apps: InputState,
-        input_state_hardware: InputState,
+        trigger_info: TriggerInfo,
     ):
+        vk_code = trigger_info.vk_code
+        is_pressed = trigger_info.is_pressed
+        is_software_triggered = trigger_info.is_software_triggered
         button = self.buttons.get(vk_code, None)
         classes = ""
         if is_software_triggered:
@@ -109,6 +109,10 @@ def parse_keyboard_layout(layout_string) -> list[tuple[str, str]]:
 
         if key_content != "":
             key_type = "normal"
+
+        if key_content == "·":
+            key_type = "mid-line"
+            key_content = ""
 
         if key_content == "^":
             key_type = "long"

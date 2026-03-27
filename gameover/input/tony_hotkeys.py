@@ -1,4 +1,4 @@
-from gameover.input.hotkeys import Hotkeys, InputState, KeyState
+from gameover.input.hotkeys import Hotkeys, InputState, KeyState, TriggerInfo
 from gameover.input.windows_constants import *
 from gameover.input.keyboard_ui import KeyboardUI
 from pynput.keyboard import Key, Controller
@@ -26,15 +26,20 @@ def move_cursor_down_until(
 
 
 class TonyHotkeys:
+
     def __init__(self, tui: KeyboardUI, hotkeys: Hotkeys):
         self.tui = tui
         self.hotkeys = hotkeys
         self.CAS_up_allowed = True
 
-    def CAS_up_hotkey(self, vk_code: int, is_pressed: bool, is_software_triggered: bool, input_state_apps: InputState, input_state_hardware: InputState):
+    def CAS_up_hotkey(self, trigger_info: TriggerInfo):
         """
         outputs Ctrl+Alt+Shift+A IFF C+A+S is released without any other keys being pressed
         """
+        is_pressed = trigger_info.is_pressed
+        vk_code = trigger_info.vk_code
+        is_software_triggered = trigger_info.is_software_triggered
+        input_state_hardware = trigger_info.input_state_hardware
 
         if is_software_triggered:
             return
@@ -64,12 +69,14 @@ class TonyHotkeys:
             if len(pressed_keys) == 0:
                 self.CAS_up_allowed = True
 
-    def quit_app_hotkey(self, vk_code: int, is_pressed: bool, is_software_triggered: bool, input_state_apps: InputState, input_state_hardware: InputState):
+    def quit_app_hotkey(self, trigger_info: TriggerInfo):
+        is_pressed = trigger_info.is_pressed
+        vk_code = trigger_info.vk_code
         if is_pressed and vk_code == VK_F5:
             self.tui.exit()
             return
 
-    def cursor_copy_down(self, vk_code: int, is_pressed: bool, is_software_triggered: bool, input_state_apps: InputState, input_state_hardware: InputState):
+    def cursor_copy_down(self, trigger_info: TriggerInfo):
         """
         Activates when C+A+S+1 is pressed. This is shown in the tui pretty box.
         After activation, when S+9 is pressed
@@ -77,12 +84,17 @@ class TonyHotkeys:
         2. Copies the line below <cursor> to the clipboard, selects all text, and pastes
         3. Moves cursor down until <cursor> is above a line with prefix '#' or EOF
         """
+        is_pressed = trigger_info.is_pressed
+        vk_code = trigger_info.vk_code
+        is_software_triggered = trigger_info.is_software_triggered
+        input_state_hardware = trigger_info.input_state_hardware
         if is_software_triggered:
             return
 
+        CURSOR_COPY_DOWN_TEXT = "cursor_copy_down_active (CAS+1)(S+9)"
         if not hasattr(self, "cursor_copy_down_active"):
             self.cursor_copy_down_active = False
-            self.tui.set_pretty_data("cursor_copy_down_active", False)
+            self.tui.set_pretty_data(CURSOR_COPY_DOWN_TEXT, False)
 
         ACTIVATION_KEYS: set = {VK_LCONTROL, VK_LMENU, VK_LSHIFT, VK_1}
         TRIGGER_KEYS: set = {VK_LSHIFT, VK_9}
@@ -90,7 +102,7 @@ class TonyHotkeys:
         if is_pressed and pressed_keys == ACTIVATION_KEYS:
             self.cursor_copy_down_active = not self.cursor_copy_down_active
             self.tui.set_pretty_data(
-                "cursor_copy_down_active", self.cursor_copy_down_active
+                CURSOR_COPY_DOWN_TEXT, self.cursor_copy_down_active
             )
 
         if not self.cursor_copy_down_active:
@@ -129,4 +141,5 @@ class TonyHotkeys:
     def register_hotkeys(self):
         self.hotkeys.register_key_change_callback(self.CAS_up_hotkey)
         self.hotkeys.register_key_change_callback(self.cursor_copy_down)
-        # self.hotkeys.register_hardware_key_change_callback(self.quit_app_hotkey)
+        # self.hotkeys.register_key_change_callback(
+        #    self.quit_app_hotkey)
