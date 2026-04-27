@@ -206,10 +206,12 @@ VK_PLAY = 0xFA  # Play key
 VK_ZOOM = 0xFB  # Zoom key
 VK_PA1 = 0xFD  # PA1 key
 VK_OEM_CLEAR = 0xFE  # Clear key
+
+VK_RDP_GHOST = 0xFF
 # endregion
 
 
-keystr_to_vk = {
+_keystr_to_vk = {
     'LButton': VK_LBUTTON,
     'RButton': VK_RBUTTON,
     'MButton': VK_MBUTTON,
@@ -293,6 +295,21 @@ keystr_to_vk = {
     'X': VK_X,
     'Y': VK_Y,
     'Z': VK_Z,
+
+    'RDP_Ghost': VK_RDP_GHOST,
 }
 
-vk_to_keystr = {v: k for k, v in keystr_to_vk.items()}
+
+_vk_to_keystr = {v: k for k, v in _keystr_to_vk.items()}
+
+
+def keystr_to_vk(keystr: str) -> int:
+    if keystr not in _keystr_to_vk:
+        return 0
+    return _keystr_to_vk[keystr]
+
+
+def vk_to_keystr(vk: int) -> str:
+    if vk not in _vk_to_keystr:
+        return "UNKNOWN_VK_CODE"
+    return _vk_to_keystr[vk]

@@ -160,7 +160,7 @@ class Hotkeys:
 
     def run_key_change_callbacks(self, vk_code: int, is_pressed: bool, is_software_triggered: bool):
         trigger_info = TriggerInfo(vk_code=vk_code,
-                                   key_str=vk_to_keystr[vk_code],
+                                   key_str=vk_to_keystr(vk_code),
                                    is_pressed=is_pressed,
                                    is_software_triggered=is_software_triggered,
                                    active_layers=self.active_layers,

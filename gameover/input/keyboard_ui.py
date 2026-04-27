@@ -44,7 +44,7 @@ class KeyboardUI(App):
                         key_content, classes=f"key {key_type}", disabled=is_disabled
                     )
                     if not is_disabled:
-                        key_vk = keystr_to_vk.get(key_content, "")
+                        key_vk = keystr_to_vk(key_content)
                         self.buttons[key_vk] = button
                     yield button
             self.pretty_box = Pretty(self.pretty_data, id="pretty-box")
